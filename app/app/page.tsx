@@ -183,7 +183,7 @@ export default function HomePage() {
 
   return (
     <main className="relative min-h-screen px-6 pt-16 pb-10 overflow-hidden bg-black">
-      <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover object-center" src={VIDEO_BG} />
+      <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover object-center" src={VIDEO_INTRO} />
       <div className="absolute inset-0 bg-black/50" />
       <div className="relative z-10 max-w-sm mx-auto">
         <img src={LOGO_URL} alt="로고" className="w-12 h-12 object-contain mb-6" />
