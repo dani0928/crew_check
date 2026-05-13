@@ -13,11 +13,7 @@ function getKSTNow() {
 }
 
 function isCheckinOpen(): boolean {
-  if (process.env.NODE_ENV === 'development') return true
-  const now = getKSTNow()
-  const day = now.getDay()
-  const total = now.getHours() * 60 + now.getMinutes()
-  return (day === 1 || day === 3) && total >= 20 * 60 && total < 20 * 60 + 30
+    return true // 일시적으로 시간 제한 비활성화
 }
 
 function getTodayKST(): string {
