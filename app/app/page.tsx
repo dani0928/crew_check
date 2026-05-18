@@ -6,14 +6,13 @@ import { supabase, Member } from '@/lib/supabase'
 
 const LOGO_URL = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/assets/Booster.jpg`
 const VIDEO_INTRO = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/assets/BOOSTER_INTRO.webm`
-const VIDEO_BG = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/assets/STG_shine.webm`
 
 function getKSTNow() {
   return new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }))
 }
 
 function isCheckinOpen(): boolean {
-    return true // 일시적으로 시간 제한 비활성화
+  return true // 일시적으로 시간 제한 비활성화
 }
 
 function getTodayKST(): string {
@@ -24,6 +23,128 @@ const ADMIN_NAMES = ['권경민', '박진혁', '백인경', '이종남', '최석
 
 type Step = 'search' | 'done'
 
+type LeaderboardEntry = {
+  name: string
+  count: number
+  rank: number
+}
+
+const RANK_MEDAL = ['', '🥇', '🥈', '🥉', '', '']
+const RANK_LABEL = ['', '1위', '2위', '3위', '4위', '5위']
+const RANK_BADGE_CLASS = [
+  '',
+  'bg-yellow-400/20 border-yellow-400/40 text-yellow-300',
+  'bg-white/10 border-white/25 text-white/70',
+  'bg-amber-700/20 border-amber-600/35 text-amber-400',
+  'bg-white/5 border-white/15 text-white/50',
+  'bg-white/5 border-white/15 text-white/50',
+]
+
+type AttendanceRow = { member_id: number; members: { name: string } | { name: string }[] }
+
+function computeRanks(data: AttendanceRow[]): LeaderboardEntry[] {
+  const countMap = new Map<number, { name: string; count: number }>()
+  for (const row of data) {
+    const id = row.member_id
+    const m = row.members
+    const name = Array.isArray(m) ? m[0]?.name : m?.name
+    if (!name) continue
+    const prev = countMap.get(id)
+    countMap.set(id, { name, count: (prev?.count ?? 0) + 1 })
+  }
+
+  const sorted = [...countMap.values()].sort((a, b) => b.count - a.count)
+
+  const result: LeaderboardEntry[] = []
+  let currentRank = 1
+  for (let i = 0; i < sorted.length; i++) {
+    if (i > 0 && sorted[i].count < sorted[i - 1].count) {
+      currentRank++
+    }
+    if (currentRank > 5) break
+    result.push({ ...sorted[i], rank: currentRank })
+  }
+  return result
+}
+
+type GroupedEntry = {
+  rank: number
+  count: number
+  names: string[]
+}
+
+function groupByRank(entries: LeaderboardEntry[]): GroupedEntry[] {
+  const map = new Map<number, GroupedEntry>()
+  for (const e of entries) {
+    const existing = map.get(e.rank)
+    if (existing) {
+      existing.names.push(e.name)
+    } else {
+      map.set(e.rank, { rank: e.rank, count: e.count, names: [e.name] })
+    }
+  }
+  return [...map.values()].sort((a, b) => a.rank - b.rank)
+}
+
+function Leaderboard({ entries, loading }: { entries: LeaderboardEntry[]; loading: boolean }) {
+  const [open, setOpen] = useState(false)
+  const grouped = groupByRank(entries)
+  return (
+    <div className="mt-2">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-1 mb-3 group"
+      >
+        <p className="text-xs font-semibold text-white/40 uppercase tracking-widest group-hover:text-white/60 transition-colors">
+          누적 출석 순위
+        </p>
+        <span className={`text-white/30 group-hover:text-white/50 transition-all duration-300 ${open ? 'rotate-180' : ''}`}>
+          ▾
+        </span>
+      </button>
+
+      <div className={`overflow-hidden transition-all duration-300 ${open ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'}`}>
+        {loading ? (
+          <p className="text-center text-white/30 text-sm py-8">불러오는 중...</p>
+        ) : grouped.length === 0 ? (
+          <p className="text-center text-white/30 text-sm py-8">아직 출석 기록이 없습니다.</p>
+        ) : (
+          <div className="space-y-2">
+            {grouped.map((group) => {
+              const isFirst = group.rank === 1
+              const badgeClass = RANK_BADGE_CLASS[group.rank] ?? RANK_BADGE_CLASS[5]
+              const label = RANK_LABEL[group.rank] ?? `${group.rank}위`
+              const medal = RANK_MEDAL[group.rank]
+              return (
+                <div
+                  key={group.rank}
+                  className={`flex items-start justify-between rounded-2xl px-5 py-3.5 border backdrop-blur-md transition-all ${
+                    isFirst
+                      ? 'bg-yellow-400/10 border-yellow-400/30'
+                      : 'bg-white/5 border-white/10'
+                  }`}
+                >
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <span className={`shrink-0 mt-0.5 text-xs font-bold rounded-full px-2.5 py-1 border ${badgeClass}`}>
+                      {medal ? `${medal} ${label}` : label}
+                    </span>
+                    <span className={`text-sm font-medium leading-relaxed break-keep ${isFirst ? 'text-yellow-200' : 'text-white/80'}`}>
+                      {group.names.join(', ')}
+                    </span>
+                  </div>
+                  <span className={`shrink-0 ml-3 text-sm font-bold tabular-nums mt-0.5 ${isFirst ? 'text-yellow-300' : 'text-white/50'}`}>
+                    {group.count}회
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function HomePage() {
   const [open, setOpen] = useState(false)
   const [members, setMembers] = useState<Member[]>([])
@@ -33,6 +154,8 @@ export default function HomePage() {
   const [step, setStep] = useState<Step>('search')
   const [doneName, setDoneName] = useState('')
   const [loading, setLoading] = useState(true)
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
+  const [leaderboardLoading, setLeaderboardLoading] = useState(true)
 
   useEffect(() => {
     setOpen(isCheckinOpen())
@@ -43,6 +166,7 @@ export default function HomePage() {
   useEffect(() => {
     if (!open) { setLoading(false); return }
     loadData()
+    loadLeaderboard()
   }, [open])
 
   async function loadData() {
@@ -65,12 +189,22 @@ export default function HomePage() {
     setLoading(false)
   }
 
+  async function loadLeaderboard() {
+    setLeaderboardLoading(true)
+    const { data } = await supabase
+      .from('attendance')
+      .select('member_id, members!inner(name)')
+    setLeaderboard(computeRanks((data ?? []) as unknown as AttendanceRow[]))
+    setLeaderboardLoading(false)
+  }
+
   useEffect(() => {
     if (step !== 'done') return
     const t = setTimeout(() => {
       setStep('search')
       setQuery('')
       setDoneName('')
+      loadLeaderboard()
     }, 5000)
     return () => clearTimeout(t)
   }, [step])
@@ -208,7 +342,7 @@ export default function HomePage() {
         {loading ? (
           <p className="text-center text-white/30 text-sm font-medium py-10">불러오는 중...</p>
         ) : query.trim() === '' ? (
-          <p className="text-center text-white/70 text-sm font-medium py-10">이름을 입력하세요.</p>
+          <Leaderboard entries={leaderboard} loading={leaderboardLoading} />
         ) : filtered.length === 0 ? (
           <p className="text-center text-white/70 text-sm font-medium py-10">검색 결과가 없습니다.</p>
         ) : (
