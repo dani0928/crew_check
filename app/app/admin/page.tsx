@@ -109,7 +109,7 @@ export default function AdminPage() {
     for (const session of allSessions) {
       const { data } = await supabase.from('attendance').select('members(name)').eq('session_id', session.id)
       const names = (data as unknown as { members: { name: string } }[] ?? []).map(a => a.members.name).sort()
-      rows.push(`${session.date},${names.length},"${names.join(', ')}"`)
+      rows.push(`"${session.date}",${names.length},"${names.join(', ')}"`)
     }
     const blob = new Blob(['﻿' + rows.join('\n')], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
