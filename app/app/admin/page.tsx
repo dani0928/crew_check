@@ -133,7 +133,7 @@ export default function AdminPage() {
         {/* 헤더 */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <a href="/" className="text-xs text-gray-400 mb-0.5 hover:text-gray-600 transition-colors">← 출석 체크로</a>
+            <a href="/" className="text-xs text-gray-400 mb-0.5 hover:text-gray-600 transition-colors">← 초기화면으로</a>
             <h1 className="text-2xl font-bold text-gray-900">운영진 관리</h1>
           </div>
           <button
