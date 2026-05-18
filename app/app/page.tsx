@@ -83,7 +83,9 @@ function groupByRank(entries: LeaderboardEntry[]): GroupedEntry[] {
       map.set(e.rank, { rank: e.rank, count: e.count, names: [e.name] })
     }
   }
-  return [...map.values()].sort((a, b) => a.rank - b.rank)
+  return [...map.values()]
+    .sort((a, b) => a.rank - b.rank)
+    .map(g => ({ ...g, names: g.names.sort((a, b) => a.localeCompare(b, 'ko')) }))
 }
 
 function Leaderboard({ entries, loading }: { entries: LeaderboardEntry[]; loading: boolean }) {
