@@ -18,11 +18,29 @@ export default function AdminPage() {
   const [monthStats, setMonthStats] = useState<MonthStat[]>([])
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7))
   const [loading, setLoading] = useState(false)
+  const [lastReset, setLastReset] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => { loadSessions(); loadMembers() }, [])
+  useEffect(() => { loadSessions(); loadMembers(); loadLastReset() }, [])
   useEffect(() => { if (selectedDate) loadAttendance(selectedDate) }, [selectedDate])
   useEffect(() => { if (tab === 'stats') loadMonthStats(selectedMonth) }, [tab, selectedMonth])
+
+  async function loadLastReset() {
+    const { data } = await supabase
+      .from('leaderboard_resets')
+      .select('reset_at')
+      .order('reset_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    setLastReset(data?.reset_at ?? null)
+  }
+
+  async function resetLeaderboard() {
+    if (!confirm('리더보드 순위를 지금부터 다시 집계합니다. 계속할까요?')) return
+    await supabase.from('leaderboard_resets').insert({ reset_at: new Date().toISOString() })
+    await loadLastReset()
+    alert('순위가 초기화됐습니다.')
+  }
 
   async function loadSessions() {
     const { data } = await supabase.from('sessions').select('id, date').order('date', { ascending: false })
@@ -217,6 +235,23 @@ export default function AdminPage() {
         {/* 월별 통계 */}
         {tab === 'stats' && (
           <div className="space-y-4">
+            <div className="bg-gray-50 rounded-2xl px-5 py-4 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-900">리더보드 순위 초기화</p>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {lastReset
+                    ? `마지막 초기화: ${new Date(lastReset).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
+                    : '초기화 기록 없음 (이번 달 기준 집계 중)'}
+                </p>
+              </div>
+              <button
+                onClick={resetLeaderboard}
+                className="px-4 py-2 bg-red-500 text-white rounded-xl text-sm font-medium hover:bg-red-600 transition-colors"
+              >
+                초기화
+              </button>
+            </div>
+
             <input
               type="month"
               value={selectedMonth}

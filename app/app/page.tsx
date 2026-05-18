@@ -193,9 +193,41 @@ export default function HomePage() {
 
   async function loadLeaderboard() {
     setLeaderboardLoading(true)
+
+    // 이번 달 첫날 (KST 기준)
+    const now = getKSTNow()
+    const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
+
+    // 마지막 수동 리셋 날짜 조회 (테이블 없으면 무시)
+    const { data: resetData } = await supabase
+      .from('leaderboard_resets')
+      .select('reset_at')
+      .order('reset_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    const resetDate = resetData?.reset_at?.slice(0, 10)
+    const startDate = resetDate && resetDate > monthStart ? resetDate : monthStart
+
+    // 해당 기간 세션 조회
+    const { data: sessionData } = await supabase
+      .from('sessions')
+      .select('id')
+      .gte('date', startDate)
+
+    const sessionIds = (sessionData ?? []).map((s: { id: number }) => s.id)
+
+    if (sessionIds.length === 0) {
+      setLeaderboard([])
+      setLeaderboardLoading(false)
+      return
+    }
+
     const { data } = await supabase
       .from('attendance')
       .select('member_id, members!inner(name)')
+      .in('session_id', sessionIds)
+
     setLeaderboard(computeRanks((data ?? []) as unknown as AttendanceRow[]))
     setLeaderboardLoading(false)
   }
