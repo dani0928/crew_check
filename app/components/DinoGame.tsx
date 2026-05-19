@@ -107,16 +107,10 @@ export function DinoGame() {
       const pImg = (s.jumpInProgress || phaseRef.current !== 'playing') ? im.stand : im.run[s.runFrame]
       ctx.drawImage(pImg, PX, s.py, PW, PH)
     } else {
-      // Fallback while images load
+      // 스프라이트 로딩 중 — 빈 캔버스 유지
       ctx.strokeStyle = 'rgba(255,255,255,0.2)'
       ctx.lineWidth = 1.5
       ctx.beginPath(); ctx.moveTo(0, GND_Y); ctx.lineTo(W, GND_Y); ctx.stroke()
-      ctx.fillStyle = 'rgba(255,255,255,0.8)'
-      s.cacti.forEach(c => ctx.fillRect(c.x, c.y, c.w, c.h))
-      ctx.font = `${PH}px serif`
-      ctx.save()
-      ctx.translate(PX + PW, s.py + PH); ctx.scale(-1, 1); ctx.fillText('🏃', 0, 0)
-      ctx.restore()
     }
 
     // Score
