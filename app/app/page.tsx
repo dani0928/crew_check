@@ -1,18 +1,25 @@
 // 크루원 출석 체크인 메인 페이지
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase, Member } from '@/lib/supabase'
+import { DinoGame } from '@/components/DinoGame'
 
 const LOGO_URL = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/assets/Booster.jpg`
 const VIDEO_INTRO = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/assets/BOOSTER_INTRO.webm`
+// BOOSTER RUNNING CREW 텍스트가 잘 보이는 타임스탬프 (초) — 필요하면 조정
+const GAME_BG_FRAME = 1
 
 function getKSTNow() {
   return new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }))
 }
 
 function isCheckinOpen(): boolean {
-  return true // 일시적으로 시간 제한 비활성화
+  const now = getKSTNow()
+  const day = now.getDay()
+  const total = now.getHours() * 60 + now.getMinutes()
+  // 월(1), 수(3), 토(6) 오후 8:00 ~ 8:30
+  return (day === 1 || day === 3 || day === 6) && total >= 20 * 60 && total < 20 * 60 + 30
 }
 
 function getTodayKST(): string {
@@ -258,13 +265,22 @@ export default function HomePage() {
 
   if (!open) {
     return (
-      <main className="relative min-h-screen flex flex-col items-center justify-center px-6 overflow-hidden bg-black">
-        <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover object-center" src={VIDEO_INTRO} />
-        <div className="absolute inset-0 bg-black/40" />
-        <div className="relative z-10 flex flex-col items-center text-center">
-          <img src={LOGO_URL} alt="로고" className="w-20 h-20 object-contain mb-6" />
+      <main className="relative min-h-screen flex flex-col items-center justify-center px-6 py-16 overflow-hidden bg-black">
+        <video
+          muted
+          playsInline
+          preload="auto"
+          onLoadedData={e => { e.currentTarget.currentTime = GAME_BG_FRAME }}
+          className="absolute inset-0 w-full h-full object-cover object-center"
+          src={VIDEO_INTRO}
+        />
+        <div className="absolute inset-0 bg-black/50" />
+        <div className="relative z-10 flex flex-col items-center text-center w-full max-w-lg">
+          <img src={LOGO_URL} alt="로고" className="w-16 h-16 object-contain mb-4" />
           <p className="text-xl font-bold text-white">러닝크루 부스터</p>
-          <p className="text-sm text-white/60 mt-2">매주 월·수 오후 8:00 ~ 8:30</p>
+          <p className="text-sm text-white/50 mt-1 mb-10">출석 체크 · 매주 월·수·토 오후 8:00 ~ 8:30</p>
+          <p className="text-sm text-white/50 mb-4">정기러닝이 없는 날엔 간단한 게임을 해봐요</p>
+          <DinoGame />
         </div>
       </main>
     )
