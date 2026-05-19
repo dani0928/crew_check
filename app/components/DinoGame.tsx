@@ -297,7 +297,15 @@ export function DinoGame() {
   async function submitScore() {
     if (!selectedName || submitting) return
     setSubmitting(true)
-    await supabase.from('game_scores').insert({ member_name: selectedName, score: finalScore })
+    const { error } = await supabase
+      .from('game_scores')
+      .insert({ member_name: selectedName, score: Math.floor(finalScore) })
+    if (error) {
+      console.error('게임 점수 등록 실패:', error)
+      alert(`등록 실패: ${error.message}`)
+      setSubmitting(false)
+      return
+    }
     await fetchScores()
     setSubmitting(false)
     setSubmitted(true)
