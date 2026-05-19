@@ -298,7 +298,8 @@ export function DinoGame() {
     if (!selectedName || submitting) return
     setSubmitting(true)
     const { error } = await supabase
-      .rpc('insert_game_score', { p_member_name: selectedName, p_score: Math.floor(finalScore) })
+      .from('game_scores')
+      .insert({ member_name: selectedName, score: Math.floor(finalScore) })
     if (error) {
       console.error('게임 점수 등록 실패:', error)
       alert(`등록 실패: ${error.message}`)
