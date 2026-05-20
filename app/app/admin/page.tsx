@@ -3,6 +3,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { supabase, Member } from '@/lib/supabase'
+import { addMember, deleteMember, importMembers, resetLeaderboard } from '@/app/actions/adminActions'
 
 type SessionRow = { id: number; date: string }
 type AttendanceRow = { member_id: number; members: { name: string } }
@@ -35,9 +36,10 @@ export default function AdminPage() {
     setLastReset(data?.reset_at ?? null)
   }
 
-  async function resetLeaderboard() {
+  async function handleResetLeaderboard() {
     if (!confirm('리더보드 순위를 지금부터 다시 집계합니다. 계속할까요?')) return
-    await supabase.from('leaderboard_resets').insert({ reset_at: new Date().toISOString() })
+    const { error } = await resetLeaderboard()
+    if (error) { alert(`오류: ${error}`); return }
     await loadLastReset()
     alert('순위가 초기화됐습니다.')
   }
@@ -62,18 +64,19 @@ export default function AdminPage() {
     setMembers(data ?? [])
   }
 
-  async function addMember() {
+  async function handleAddMember() {
     const name = newName.trim()
     if (!name) return
-    await supabase.from('members').insert({ name })
+    const { error } = await addMember(name)
+    if (error) { alert(`오류: ${error}`); return }
     setNewName('')
     loadMembers()
   }
 
-  async function deleteMember(id: number) {
+  async function handleDeleteMember(id: number) {
     if (!confirm('삭제하면 해당 크루원의 출석 기록도 모두 삭제됩니다. 계속할까요?')) return
-    await supabase.from('attendance').delete().eq('member_id', id)
-    await supabase.from('members').delete().eq('id', id)
+    const { error } = await deleteMember(id)
+    if (error) { alert(`오류: ${error}`); return }
     loadMembers()
   }
 
@@ -82,7 +85,8 @@ export default function AdminPage() {
     if (!file) return
     const text = await file.text()
     const names = text.split('\n').map(l => l.trim()).filter(Boolean)
-    await supabase.from('members').insert(names.map(name => ({ name })))
+    const { error } = await importMembers(names)
+    if (error) { alert(`오류: ${error}`); return }
     loadMembers()
     if (fileRef.current) fileRef.current.value = ''
   }
@@ -198,12 +202,12 @@ export default function AdminPage() {
               <input
                 value={newName}
                 onChange={e => setNewName(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && addMember()}
+                onKeyDown={e => e.key === 'Enter' && handleAddMember()}
                 placeholder="이름 입력"
                 className="flex-1 bg-gray-50 rounded-2xl px-5 py-4 text-sm text-gray-900 outline-none"
               />
               <button
-                onClick={addMember}
+                onClick={handleAddMember}
                 className="px-5 py-4 bg-gray-900 text-white rounded-2xl text-sm font-medium"
               >
                 추가
@@ -223,7 +227,7 @@ export default function AdminPage() {
               {members.map(m => (
                 <div key={m.id} className="flex items-center justify-between bg-gray-50 rounded-2xl px-5 py-4">
                   <span className="text-gray-900 font-medium">{m.name}</span>
-                  <button onClick={() => deleteMember(m.id)} className="text-xs text-gray-300 hover:text-red-400 transition-colors">
+                  <button onClick={() => handleDeleteMember(m.id)} className="text-xs text-gray-300 hover:text-red-400 transition-colors">
                     삭제
                   </button>
                 </div>
@@ -245,7 +249,7 @@ export default function AdminPage() {
                 </p>
               </div>
               <button
-                onClick={resetLeaderboard}
+                onClick={handleResetLeaderboard}
                 className="px-4 py-2 bg-red-500 text-white rounded-xl text-sm font-medium hover:bg-red-600 transition-colors"
               >
                 초기화
