@@ -6,7 +6,8 @@ const MAX_SCORE = 9999
 
 export async function submitGameScore(
   memberName: string,
-  score: number
+  score: number,
+  gameType: 'dino' | 'flappy' = 'dino'
 ): Promise<{ error?: string }> {
   // 점수 유효성 검증
   if (!Number.isInteger(score) || score < 0 || score > MAX_SCORE) {
@@ -31,7 +32,7 @@ export async function submitGameScore(
 
   const { error } = await supabaseAdmin
     .from('game_scores')
-    .insert({ member_name: memberName, score })
+    .insert({ member_name: memberName, score, game_type: gameType })
 
   if (error) return { error: error.message }
   return {}

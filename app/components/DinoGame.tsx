@@ -76,6 +76,7 @@ export function DinoGame() {
     setScoresLoading(true)
     const { data } = await supabase
       .from('game_scores').select('member_name, score')
+      .eq('game_type', 'dino')
       .order('score', { ascending: false }).limit(200)
     const bestMap = new Map<string, number>()
     for (const row of (data ?? [])) {
@@ -292,7 +293,7 @@ export function DinoGame() {
   async function submitScore() {
     if (!selectedName || submitting) return
     setSubmitting(true)
-    const { error } = await submitGameScore(selectedName, Math.floor(finalScore))
+    const { error } = await submitGameScore(selectedName, Math.floor(finalScore), 'dino')
     if (error) {
       console.error('게임 점수 등록 실패:', error)
       alert(`등록 실패: ${error}`)

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase, Member } from '@/lib/supabase'
 import { DinoGame } from '@/components/DinoGame'
+import { FlappyGame } from '@/components/FlappyGame'
 import { getOrCreateSession, markAttendance } from '@/app/actions/attendanceActions'
 
 const LOGO_URL = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/assets/Booster.jpg`
@@ -120,6 +121,7 @@ type Step = 'search' | 'done'
 
 export default function HomePage() {
   const [view, setView] = useState<View>('public')
+  const [activeGame, setActiveGame] = useState<'dino' | 'flappy'>('dino')
 
   // PIN
   const [pinDigits, setPinDigits] = useState(['', '', '', ''])
@@ -375,7 +377,21 @@ export default function HomePage() {
 
         {/* 미니게임 */}
         <p className="text-sm text-white/50 mb-4">정기러닝이 없는 날엔 간단한 게임을 해봐요</p>
-        <DinoGame />
+        <div className="flex gap-2 mb-5">
+          <button
+            onClick={() => setActiveGame('dino')}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${activeGame === 'dino' ? 'bg-white/20 text-white' : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/60'}`}
+          >
+            🦕 다이노 게임
+          </button>
+          <button
+            onClick={() => setActiveGame('flappy')}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${activeGame === 'flappy' ? 'bg-white/20 text-white' : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/60'}`}
+          >
+            🐦 플래피버드
+          </button>
+        </div>
+        {activeGame === 'dino' ? <DinoGame /> : <FlappyGame />}
       </div>
     </main>
   )
