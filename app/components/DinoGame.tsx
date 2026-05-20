@@ -320,10 +320,7 @@ export function DinoGame() {
       {/* Canvas */}
       <div>
         <div
-          onMouseDown={handleDown}
-          onMouseUp={releaseJump}
-          onTouchStart={e => { e.preventDefault(); handleDown() }}
-          onTouchEnd={releaseJump}
+          onPointerDown={e => { e.preventDefault(); handleDown() }}
           style={{ touchAction: 'none' }}
         >
           <canvas

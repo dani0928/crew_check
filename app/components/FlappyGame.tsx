@@ -333,8 +333,7 @@ export function FlappyGame() {
     <div className="flex flex-col items-center gap-4 w-full">
       {/* Canvas */}
       <div
-        onMouseDown={handleAction}
-        onTouchStart={e => { e.preventDefault(); handleAction() }}
+        onPointerDown={e => { e.preventDefault(); handleAction() }}
         style={{ width: W, maxWidth: '100%', touchAction: 'none' }}
       >
         <canvas
