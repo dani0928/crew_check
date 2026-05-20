@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from 'react'
 import { supabase, Member } from '@/lib/supabase'
 import { DinoGame } from '@/components/DinoGame'
 import { FlappyGame } from '@/components/FlappyGame'
-import { getOrCreateSession, markAttendance } from '@/app/actions/attendanceActions'
 
 const LOGO_URL = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/assets/Booster.jpg`
 const VIDEO_INTRO = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/assets/BOOSTER_INTRO.webm`
@@ -179,12 +178,16 @@ export default function HomePage() {
   async function loadAttendanceData() {
     setAttendanceLoading(true)
     const today = getTodayKST()
-    const { sessionId: sid, error } = await getOrCreateSession(today)
-    if (error || !sid) { setAttendanceLoading(false); return }
-    setSessionId(sid)
+    const { data: existing } = await supabase.from('sessions').select('id').eq('date', today).single()
+    let sid = existing?.id
+    if (!sid) {
+      const { data: created } = await supabase.from('sessions').insert({ date: today }).select('id').single()
+      sid = created?.id
+    }
+    setSessionId(sid ?? null)
     const [{ data: membersData }, { data: attendanceData }] = await Promise.all([
       supabase.from('members').select('*').order('name'),
-      supabase.from('attendance').select('member_id').eq('session_id', sid),
+      sid ? supabase.from('attendance').select('member_id').eq('session_id', sid) : Promise.resolve({ data: [] }),
     ])
     setMembers(membersData ?? [])
     setCheckedInIds(new Set((attendanceData ?? []).map((a: { member_id: number }) => a.member_id)))
@@ -193,8 +196,7 @@ export default function HomePage() {
 
   async function handleSelect(member: Member) {
     if (!sessionId || checkedInIds.has(member.id)) return
-    const { error } = await markAttendance(sessionId, member.id)
-    if (error) { console.error(error); return }
+    await supabase.from('attendance').insert({ session_id: sessionId, member_id: member.id })
     setCheckedInIds(prev => new Set(prev).add(member.id))
     setDoneName(member.name)
     setStep('done')

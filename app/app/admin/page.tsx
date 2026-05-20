@@ -3,7 +3,6 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { supabase, Member } from '@/lib/supabase'
-import { addMember, deleteMember, importMembers, resetLeaderboard } from '@/app/actions/adminActions'
 
 type SessionRow = { id: number; date: string }
 type AttendanceRow = { member_id: number; members: { name: string } }
@@ -38,8 +37,7 @@ export default function AdminPage() {
 
   async function handleResetLeaderboard() {
     if (!confirm('리더보드 순위를 지금부터 다시 집계합니다. 계속할까요?')) return
-    const { error } = await resetLeaderboard()
-    if (error) { alert(`오류: ${error}`); return }
+    await supabase.from('leaderboard_resets').insert({ reset_at: new Date().toISOString() })
     await loadLastReset()
     alert('순위가 초기화됐습니다.')
   }
@@ -67,16 +65,15 @@ export default function AdminPage() {
   async function handleAddMember() {
     const name = newName.trim()
     if (!name) return
-    const { error } = await addMember(name)
-    if (error) { alert(`오류: ${error}`); return }
+    await supabase.from('members').insert({ name })
     setNewName('')
     loadMembers()
   }
 
   async function handleDeleteMember(id: number) {
     if (!confirm('삭제하면 해당 크루원의 출석 기록도 모두 삭제됩니다. 계속할까요?')) return
-    const { error } = await deleteMember(id)
-    if (error) { alert(`오류: ${error}`); return }
+    await supabase.from('attendance').delete().eq('member_id', id)
+    await supabase.from('members').delete().eq('id', id)
     loadMembers()
   }
 
@@ -85,8 +82,7 @@ export default function AdminPage() {
     if (!file) return
     const text = await file.text()
     const names = text.split('\n').map(l => l.trim()).filter(Boolean)
-    const { error } = await importMembers(names)
-    if (error) { alert(`오류: ${error}`); return }
+    await supabase.from('members').insert(names.map(name => ({ name })))
     loadMembers()
     if (fileRef.current) fileRef.current.value = ''
   }
