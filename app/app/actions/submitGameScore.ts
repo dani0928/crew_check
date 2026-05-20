@@ -14,13 +14,13 @@ export async function submitGameScore(
     return { error: '유효하지 않은 점수입니다.' }
   }
 
-  // 멤버 이름 유효성 검증 (크루원만 등록 가능)
-  const supabaseAdmin = createClient(
+  // 멤버 이름 검증: anon 키로 public SELECT 사용 (항상 동작)
+  const supabaseAnon = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
-  const { data: member } = await supabaseAdmin
+  const { data: member } = await supabaseAnon
     .from('members')
     .select('id')
     .eq('name', memberName)
@@ -29,6 +29,12 @@ export async function submitGameScore(
   if (!member) {
     return { error: '크루원 명단에 없는 이름입니다.' }
   }
+
+  // INSERT: service role 키 사용
+  const supabaseAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
 
   const { error } = await supabaseAdmin
     .from('game_scores')
