@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { submitGameScore } from '@/app/actions/submitGameScore'
 
 // --- Constants (adapted from github.com/CodingWith-Adam/dino-game, scale ×0.75 from 800×200) ---
 const W = 600, H = 180
@@ -293,10 +292,14 @@ export function DinoGame() {
   async function submitScore() {
     if (!selectedName || submitting) return
     setSubmitting(true)
-    const { error } = await submitGameScore(selectedName, Math.floor(finalScore), 'dino')
+    const score = Math.floor(finalScore)
+    if (score < 0 || score > 9999) { setSubmitting(false); return }
+    const { error } = await supabase
+      .from('game_scores')
+      .insert({ member_name: selectedName, score, game_type: 'dino' })
     if (error) {
       console.error('게임 점수 등록 실패:', error)
-      alert(`등록 실패: ${error}`)
+      alert(`등록 실패: ${error.message}`)
       setSubmitting(false)
       return
     }

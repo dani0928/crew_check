@@ -5,7 +5,6 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { submitGameScore } from '@/app/actions/submitGameScore'
 
 // --- Constants (faithful to original) ---
 const W = 300, H = 500
@@ -314,8 +313,11 @@ export function FlappyGame() {
   async function handleSubmitScore() {
     if (!selectedName || submitting) return
     setSubmitting(true)
-    const { error } = await submitGameScore(selectedName, finalScore, 'flappy')
-    if (error) { alert(`등록 실패: ${error}`); setSubmitting(false); return }
+    if (finalScore < 0 || finalScore > 9999) { setSubmitting(false); return }
+    const { error } = await supabase
+      .from('game_scores')
+      .insert({ member_name: selectedName, score: finalScore, game_type: 'flappy' })
+    if (error) { alert(`등록 실패: ${error.message}`); setSubmitting(false); return }
     await fetchScores()
     setSubmitting(false)
     setSubmitted(true)
