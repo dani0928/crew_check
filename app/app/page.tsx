@@ -382,12 +382,14 @@ export default function HomePage() {
         <div className="flex gap-2 mb-5 w-full max-w-sm">
           <button
             onClick={() => setActiveGame('dino')}
+            style={{ touchAction: 'manipulation' }}
             className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${activeGame === 'dino' ? 'bg-white/20 text-white' : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/60'}`}
           >
             🦕 다이노게임
           </button>
           <button
             onClick={() => setActiveGame('flappy')}
+            style={{ touchAction: 'manipulation' }}
             className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${activeGame === 'flappy' ? 'bg-white/20 text-white' : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/60'}`}
           >
             🐦 플래피버드

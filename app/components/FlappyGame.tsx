@@ -332,7 +332,11 @@ export function FlappyGame() {
   return (
     <div className="flex flex-col items-center gap-4 w-full">
       {/* Canvas */}
-      <div onClick={handleAction} style={{ width: W, maxWidth: '100%' }}>
+      <div
+        onMouseDown={handleAction}
+        onTouchStart={e => { e.preventDefault(); handleAction() }}
+        style={{ width: W, maxWidth: '100%', touchAction: 'none' }}
+      >
         <canvas
           ref={cvs}
           width={W} height={H}

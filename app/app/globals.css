@@ -19,6 +19,11 @@ body {
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
+/* 모바일 터치 300ms 딜레이 제거 */
+button, a, [role="button"] {
+  touch-action: manipulation;
+}
+
 @keyframes circlePop {
   0%   { transform: scale(0); opacity: 0; }
   60%  { transform: scale(1.15); opacity: 1; }
