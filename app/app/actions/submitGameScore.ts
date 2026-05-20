@@ -14,11 +14,10 @@ export async function submitGameScore(
     return { error: '유효하지 않은 점수입니다.' }
   }
 
-  // 멤버 이름 검증: anon 키로 public SELECT 사용 (항상 동작)
-  const supabaseAnon = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+  // 멤버 이름 검증: anon 키로 public SELECT 사용 (BOM 문자 제거)
+  const url = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/^﻿/, '').trim()
+  const anonKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '').replace(/^﻿/, '').trim()
+  const supabaseAnon = createClient(url, anonKey)
 
   const { data: member } = await supabaseAnon
     .from('members')
