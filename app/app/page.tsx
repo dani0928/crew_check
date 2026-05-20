@@ -377,12 +377,12 @@ export default function HomePage() {
 
         {/* 미니게임 */}
         <p className="text-sm text-white/50 mb-4">정기러닝이 없는 날엔 간단한 게임을 해봐요</p>
-        <div className="flex gap-2 mb-5">
+        <div className="flex gap-2 mb-5 w-full max-w-sm">
           <button
             onClick={() => setActiveGame('dino')}
             className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${activeGame === 'dino' ? 'bg-white/20 text-white' : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/60'}`}
           >
-            🦕 다이노 게임
+            🦕 다이노게임
           </button>
           <button
             onClick={() => setActiveGame('flappy')}

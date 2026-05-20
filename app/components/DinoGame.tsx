@@ -115,12 +115,12 @@ export function DinoGame() {
       ctx.beginPath(); ctx.moveTo(0, GND_Y); ctx.lineTo(W, GND_Y); ctx.stroke()
     }
 
-    // Score
+    // Score (centre)
     if (s.score > 0) {
       ctx.fillStyle = 'rgba(255,255,255,0.45)'
       ctx.font = '13px monospace'
-      ctx.textAlign = 'right'
-      ctx.fillText(String(Math.floor(s.score)).padStart(5, '0'), W - 14, 20)
+      ctx.textAlign = 'center'
+      ctx.fillText(String(Math.floor(s.score)).padStart(5, '0'), W / 2, 20)
       ctx.textAlign = 'left'
     }
   }, [])
