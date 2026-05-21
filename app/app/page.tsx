@@ -250,7 +250,7 @@ function WeatherPage({ forecasts }: { forecasts: ForecastItem[] | null }) {
       position:'relative', height:'100dvh',
       display:'flex', flexDirection:'column', alignItems:'center',
       color:'white', overflow:'hidden',
-      fontFamily:'-apple-system,"SF Pro Display",system-ui,sans-serif',
+      fontFamily:'Pretendard,-apple-system,BlinkMacSystemFont,sans-serif',
     }}>
       {current && <WeatherAnimation pty={current.pty} sky={current.sky} />}
 
