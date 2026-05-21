@@ -457,6 +457,7 @@ export default function HomePage() {
   // PIN
   const [pinDigits, setPinDigits] = useState(['', '', '', ''])
   const [pinError, setPinError]   = useState(false)
+  const [pinLoading, setPinLoading] = useState(false)
   const pinRefs = useRef<(HTMLInputElement | null)[]>([null, null, null, null])
 
   // Leaderboard
@@ -574,20 +575,28 @@ export default function HomePage() {
   }
 
   async function handlePinDigit(idx: number, val: string) {
-    if (!/^\d*$/.test(val)) return
+    if (!/^\d*$/.test(val) || pinLoading) return
     const next = [...pinDigits]
     next[idx] = val.slice(-1)
     setPinDigits(next)
     setPinError(false)
     if (val && idx < 3) pinRefs.current[idx + 1]?.focus()
     if (next.every(d => d !== '')) {
-      const code = next.join('')
-      const valid = await validatePin(code)
-      if (valid) {
-        setView('attendance'); setPinDigits(['', '', '', ''])
-      } else {
+      setPinLoading(true)
+      try {
+        const valid = await validatePin(next.join(''))
+        if (valid) {
+          setView('attendance'); setPinDigits(['', '', '', ''])
+        } else {
+          setPinError(true); setPinDigits(['', '', '', ''])
+          setTimeout(() => pinRefs.current[0]?.focus(), 50)
+        }
+      } catch {
+        // 서버 오류 → 틀린 것으로 처리
         setPinError(true); setPinDigits(['', '', '', ''])
         setTimeout(() => pinRefs.current[0]?.focus(), 50)
+      } finally {
+        setPinLoading(false)
       }
     }
   }
@@ -729,13 +738,15 @@ export default function HomePage() {
                   key={i}
                   ref={el => { pinRefs.current[i] = el }}
                   type="password" inputMode="numeric" maxLength={1} value={d}
+                  disabled={pinLoading}
                   onChange={e => handlePinDigit(i, e.target.value)}
                   onKeyDown={e => handlePinKeyDown(i, e)}
-                  className={`w-12 h-14 text-center text-2xl font-bold bg-white/10 border rounded-xl text-white outline-none transition-all ${pinError ? 'border-red-400/60 bg-red-400/10' : 'border-white/20 focus:border-white/50 focus:bg-white/15'}`}
+                  className={`w-12 h-14 text-center text-2xl font-bold bg-white/10 border rounded-xl text-white outline-none transition-all ${pinLoading ? 'opacity-50 cursor-not-allowed' : ''} ${pinError ? 'border-red-400/60 bg-red-400/10' : 'border-white/20 focus:border-white/50 focus:bg-white/15'}`}
                 />
               ))}
             </div>
-            {pinError && <p className="text-red-400 text-xs mb-3">코드가 틀렸습니다</p>}
+            {pinLoading && <p className="text-white/50 text-xs mb-3">확인 중...</p>}
+            {!pinLoading && pinError && <p className="text-red-400 text-xs mb-3">코드가 틀렸습니다</p>}
             <button onClick={() => { setView('public'); setPinDigits(['', '', '', '']); setPinError(false) }}
               className="text-white/30 text-xs mt-2 hover:text-white/60 transition-colors">취소</button>
           </div>
