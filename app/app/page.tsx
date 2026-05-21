@@ -533,22 +533,26 @@ export default function HomePage() {
     setAttendanceLoading(true)
     try {
       const today = getTodayKST()
-      // 세션 생성과 멤버 로드를 병렬 실행 — 세션 실패해도 멤버는 항상 로드
-      const [sessionResult, { data: membersData }] = await Promise.all([
-        getOrCreateSession(today),
+      // 읽기는 anon 클라이언트 직접 사용 (서버 액션 경유 없음 → 빠름)
+      const [{ data: existing }, { data: membersData }] = await Promise.all([
+        supabase.from('sessions').select('id').eq('date', today).maybeSingle(),
         supabase.from('members').select('*').order('name'),
       ])
       setMembers(membersData ?? [])
 
-      const sid = sessionResult?.sessionId
-      if (sid) {
-        setSessionId(sid)
-        const { data: attendanceData } = await supabase
-          .from('attendance').select('member_id').eq('session_id', sid)
-        setCheckedInIds(new Set((attendanceData ?? []).map((a: { member_id: number }) => a.member_id)))
+      let sid: number | undefined = existing?.id
+      if (!sid) {
+        // 쓰기만 서버 액션 (service role key 사용)
+        const { sessionId, error } = await getOrCreateSession(today)
+        if (error || !sessionId) return
+        sid = sessionId
       }
+      setSessionId(sid)
+      const { data: attendanceData } = await supabase
+        .from('attendance').select('member_id').eq('session_id', sid)
+      setCheckedInIds(new Set((attendanceData ?? []).map((a: { member_id: number }) => a.member_id)))
     } catch {
-      // 전체 실패 시 빈 상태 유지
+      // 실패 시 빈 상태 유지
     } finally {
       setAttendanceLoading(false)
     }
