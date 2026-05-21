@@ -533,17 +533,22 @@ export default function HomePage() {
     setAttendanceLoading(true)
     try {
       const today = getTodayKST()
-      const { sessionId: sid, error: sessionError } = await getOrCreateSession(today)
-      if (sessionError || !sid) { setAttendanceLoading(false); return }
-      setSessionId(sid)
-      const [{ data: membersData }, { data: attendanceData }] = await Promise.all([
+      // 세션 생성과 멤버 로드를 병렬 실행 — 세션 실패해도 멤버는 항상 로드
+      const [sessionResult, { data: membersData }] = await Promise.all([
+        getOrCreateSession(today),
         supabase.from('members').select('*').order('name'),
-        supabase.from('attendance').select('member_id').eq('session_id', sid),
       ])
       setMembers(membersData ?? [])
-      setCheckedInIds(new Set((attendanceData ?? []).map((a: { member_id: number }) => a.member_id)))
+
+      const sid = sessionResult?.sessionId
+      if (sid) {
+        setSessionId(sid)
+        const { data: attendanceData } = await supabase
+          .from('attendance').select('member_id').eq('session_id', sid)
+        setCheckedInIds(new Set((attendanceData ?? []).map((a: { member_id: number }) => a.member_id)))
+      }
     } catch {
-      // 실패 시 빈 상태 유지
+      // 전체 실패 시 빈 상태 유지
     } finally {
       setAttendanceLoading(false)
     }
