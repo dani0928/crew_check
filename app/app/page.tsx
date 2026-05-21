@@ -346,7 +346,7 @@ function WeatherBadge({ forecasts }: { forecasts: ForecastItem[] | null }) {
   return (
     <div className="flex items-center gap-2 flex-wrap justify-center mb-5">
       {/* Caption — 현재 날씨 */}
-      <div className="flex items-center gap-1.5 bg-white/10 border border-white/15 rounded-full px-3 py-1">
+      <div className="flex items-center gap-1.5 bg-white/10 border border-white/15 rounded-full px-3 py-1 text-white">
         <span style={{ fontSize: 14 }}>{ptyIcon(near.pty, near.sky)}</span>
         <span style={{ fontSize: 12, opacity: .75 }}>
           {near.time.slice(0, 2)}시 {ptyLabel(near.pty, near.sky)}
