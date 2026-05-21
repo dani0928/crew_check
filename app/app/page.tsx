@@ -173,98 +173,23 @@ function WeatherAnimation({ pty, sky }: { pty: string; sky: string }) {
   )
 }
 
-// 여울공원 지도 — Leaflet + CartoDB dark tiles
-const MAP_LAT = 37.1994
-const MAP_LON = 127.0859
+// 날씨누리 공식 지도 iframe embed
+const WEATHER_MAP_URL =
+  'https://www.weather.go.kr/wgis-nuri/html/map.html?location=127.085934987551,37.1993699999133'
 
-function WeatherMap({ pty, sky }: { pty: string; sky: string }) {
-  const divRef  = useRef<HTMLDivElement>(null)
-  const mapInst = useRef<unknown>(null)
-
-  useEffect(() => {
-    if (!divRef.current || mapInst.current) return
-
-    // Leaflet CSS (CDN, 중복 방지)
-    if (!document.getElementById('leaflet-css')) {
-      const link = document.createElement('link')
-      link.id = 'leaflet-css'
-      link.rel = 'stylesheet'
-      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
-      document.head.appendChild(link)
-    }
-
-    import('leaflet').then(mod => {
-      const L = mod.default
-      if (!divRef.current || mapInst.current) return
-
-      const map = L.map(divRef.current, {
-        center:           [MAP_LAT, MAP_LON],
-        zoom:             14,
-        zoomControl:      false,
-        attributionControl: false,
-        dragging:         false,
-        scrollWheelZoom:  false,
-        doubleClickZoom:  false,
-        touchZoom:        false,
-        keyboard:         false,
-      })
-
-      // CartoDB 다크 타일 (무료, 오픈)
-      L.tileLayer(
-        'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-        { maxZoom: 19 }
-      ).addTo(map)
-
-      // 날씨 조건 색상
-      const color = pty !== '0' ? '#60a5fa' : sky === '1' ? '#ffd000' : '#94a3b8'
-      const glow  = pty !== '0' ? 'rgba(96,165,250,.7)' : sky === '1' ? 'rgba(255,208,0,.7)' : 'rgba(148,163,184,.4)'
-
-      const icon = L.divIcon({
-        html: `
-          <div style="position:relative;width:32px;height:32px">
-            <div style="position:absolute;inset:0;border-radius:50%;background:${color};opacity:.25;animation:pulse 2s ease-in-out infinite"></div>
-            <div style="position:absolute;inset:8px;border-radius:50%;background:${color};border:2px solid white;box-shadow:0 0 10px ${glow}"></div>
-          </div>
-          <style>@keyframes pulse{0%,100%{transform:scale(1);opacity:.25}50%{transform:scale(1.6);opacity:0}}</style>
-        `,
-        className: '',
-        iconSize:   [32, 32],
-        iconAnchor: [16, 16],
-      })
-      L.marker([MAP_LAT, MAP_LON], { icon }).addTo(map)
-
-      // 위치 라벨
-      L.marker([MAP_LAT, MAP_LON], {
-        icon: L.divIcon({
-          html: '<div style="background:rgba(0,0,0,.55);color:white;font-size:11px;padding:2px 7px;border-radius:8px;white-space:nowrap;margin-top:18px">동탄 여울공원</div>',
-          className: '',
-          iconAnchor: [-4, 16],
-        }),
-      }).addTo(map)
-
-      mapInst.current = map
-    })
-
-    return () => {
-      if (mapInst.current) {
-        (mapInst.current as { remove: () => void }).remove()
-        mapInst.current = null
-      }
-    }
-  }, [pty, sky])
-
+function WeatherMap() {
   return (
     <div style={{
-      position: 'relative', width: '100%', height: 180,
+      width: '100%', height: 220,
       borderRadius: 18, overflow: 'hidden',
-      background: 'rgba(255,255,255,.06)',
+      background: 'rgba(0,0,0,.3)',
     }}>
-      <div ref={divRef} style={{ width: '100%', height: '100%' }} />
-      {/* 오른쪽 하단 attribution */}
-      <div style={{
-        position: 'absolute', bottom: 4, right: 6,
-        fontSize: 9, color: 'rgba(255,255,255,.35)', pointerEvents: 'none',
-      }}>© CartoDB © OSM</div>
+      <iframe
+        src={WEATHER_MAP_URL}
+        title="동탄 여울공원 날씨 지도"
+        style={{ width: '100%', height: '100%', border: 'none' }}
+        scrolling="no"
+      />
     </div>
   )
 }
@@ -336,7 +261,7 @@ function WeatherPage({ forecasts }: { forecasts: ForecastItem[] | null }) {
       {/* 지도 */}
       {current && (
         <div style={{ position:'relative', zIndex:1, width:'100%', padding:'0 16px', marginBottom: 14 }}>
-          <WeatherMap pty={current.pty} sky={current.sky} />
+          <WeatherMap />
         </div>
       )}
 
