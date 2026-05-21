@@ -329,6 +329,45 @@ function WeatherPage({ forecasts }: { forecasts: ForecastItem[] | null }) {
   )
 }
 
+// --- WeatherBadge (메인 화면용 소형 뱃지) ---
+function WeatherBadge({ forecasts }: { forecasts: ForecastItem[] | null }) {
+  if (!forecasts || forecasts.length === 0) return null
+
+  const now        = getKSTNow()
+  const day        = now.getDay()
+  const hour       = now.getHours()
+  const isRunDay   = day === 1 || day === 3 || day === 6
+  const beforeRun  = hour < 20
+
+  const near       = forecasts[0]
+  const running    = forecasts.find(f => f.time === '2000')
+  const runRain    = running && running.pty !== '0'
+
+  return (
+    <div className="flex items-center gap-2 flex-wrap justify-center mb-5">
+      {/* Caption — 현재 날씨 */}
+      <div className="flex items-center gap-1.5 bg-white/10 border border-white/15 rounded-full px-3 py-1">
+        <span style={{ fontSize: 14 }}>{ptyIcon(near.pty, near.sky)}</span>
+        <span style={{ fontSize: 12, opacity: .75 }}>
+          {near.time.slice(0, 2)}시 {ptyLabel(near.pty, near.sky)}
+        </span>
+      </div>
+
+      {/* Caption — 러닝 예보 (운동일 + 20시 이전 + 데이터 있을 때) */}
+      {isRunDay && beforeRun && running && (
+        <div className={`flex items-center gap-1.5 rounded-full px-3 py-1 border text-xs font-medium ${
+          runRain
+            ? 'bg-blue-400/15 border-blue-400/30 text-blue-300'
+            : 'bg-green-400/10 border-green-400/25 text-green-300'
+        }`}>
+          <span style={{ fontSize: 14 }}>{ptyIcon(running.pty, running.sky)}</span>
+          <span>20시 러닝 {runRain ? '비 예보' : '맑음'}</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // --- Leaderboard ---
 type LeaderboardEntry = { name: string; count: number; rank: number }
 type GroupedEntry = { rank: number; count: number; names: string[] }
@@ -727,7 +766,8 @@ export default function HomePage() {
             <img src={LOGO_URL} alt="로고" className="w-16 h-16 object-contain" />
           </button>
           <p className="text-xl font-bold text-white mb-1">러닝크루 부스터</p>
-          <p className="text-sm text-white/40 mb-8">매주 월·수·토 함께 달려요</p>
+          <p className="text-sm text-white/40 mb-3">매주 월·수·토 함께 달려요</p>
+          <WeatherBadge forecasts={forecasts} />
 
           {/* 리더보드 */}
           <div className="w-full max-w-sm mb-6">
