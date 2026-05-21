@@ -206,7 +206,7 @@ function WeatherPage({ forecasts }: { forecasts: ForecastItem[] | null }) {
 
   /*
    * ── 타이포그래피 규정 ─────────────────────────────────────────
-   * 폰트: -apple-system, "SF Pro Display", system-ui, sans-serif
+   * 폰트: Pretendard, -apple-system, BlinkMacSystemFont, sans-serif
    *
    * Display  clamp(72,19vw,90px)  100  메인 수치 (기온)
    * H1       30px  700  페이지 제목 (출석 체크)
@@ -488,10 +488,15 @@ export default function HomePage() {
   }
 
   useEffect(() => {
-    fetch('/api/weather')
-      .then(r => r.json())
-      .then(d => setForecasts(d.forecasts ?? null))
-      .catch(() => {})
+    const load = () =>
+      fetch('/api/weather')
+        .then(r => r.json())
+        .then(d => setForecasts(d.forecasts ?? null))
+        .catch(() => {})
+    load()
+    // 30분마다 자동 갱신 (기상청 초단기예보 발표 주기와 동일)
+    const t = setInterval(load, 30 * 60 * 1000)
+    return () => clearInterval(t)
   }, [])
 
   useEffect(() => {
