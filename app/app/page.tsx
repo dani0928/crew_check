@@ -260,7 +260,7 @@ function WeatherPage({ forecasts }: { forecasts: ForecastItem[] | null }) {
 
       {/* 지도 */}
       {current && (
-        <div style={{ position:'relative', zIndex:1, width:'100%', padding:'0 16px', marginBottom: 14 }}>
+        <div style={{ position:'relative', zIndex:1, width:'100%', padding:'0 16px', marginTop: 24, marginBottom: 8 }}>
           <WeatherMap />
         </div>
       )}
@@ -268,7 +268,7 @@ function WeatherPage({ forecasts }: { forecasts: ForecastItem[] | null }) {
       <div style={{ flex:1 }} />
 
       {/* 시간별 예보 — 하단 고정 유리 카드 */}
-      <div style={{ width:'100%', padding:'0 16px 48px', position:'relative', zIndex:1 }}>
+      <div style={{ width:'100%', padding:'0 16px', paddingBottom:'max(80px, calc(env(safe-area-inset-bottom) + 64px))', position:'relative', zIndex:1 }}>
         <div style={{
           background:'rgba(255,255,255,0.13)',
           backdropFilter:'blur(40px)', WebkitBackdropFilter:'blur(40px)',
@@ -713,7 +713,7 @@ export default function HomePage() {
               </p>
               <span className={`text-white/30 group-hover:text-white/50 transition-all duration-300 ${gameOpen ? 'rotate-180' : ''}`}>▾</span>
             </button>
-            <div className={`overflow-hidden transition-all duration-300 ${gameOpen ? 'max-h-[700px] opacity-100' : 'max-h-0 opacity-0'}`}>
+            <div className={`overflow-hidden transition-all duration-300 ${gameOpen ? 'max-h-[2400px] opacity-100' : 'max-h-0 opacity-0'}`}>
               <div className="flex gap-2 mb-5">
                 <button onClick={() => setActiveGame('dino')} style={{ touchAction: 'manipulation' }}
                   className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${activeGame === 'dino' ? 'bg-white/20 text-white' : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/60'}`}>
