@@ -697,8 +697,8 @@ export default function HomePage() {
 
       {/* 배경 1: 메인 페이지 (비디오) */}
       <video
-        autoPlay loop muted playsInline preload="auto"
-        onLoadedData={e => { e.currentTarget.currentTime = GAME_BG_FRAME }}
+        autoPlay muted playsInline preload="auto"
+        onLoadedData={e => { e.currentTarget.currentTime = GAME_BG_FRAME; e.currentTarget.pause() }}
         className="absolute inset-0 w-full h-full object-cover object-center transition-opacity duration-500"
         style={{ opacity: pageIndex === 0 ? 1 : 0 }}
         src={VIDEO_INTRO}
