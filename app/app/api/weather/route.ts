@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 
-const NX = 57
-const NY = 112
+// 동탄 여울공원 정확한 격자 좌표 (lat=37.1994, lon=127.0859 → KMA LCC 공식)
+const NX = 62
+const NY = 119
 
 function getKSTNow() {
   return new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }))
