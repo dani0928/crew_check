@@ -4,11 +4,13 @@ import { useEffect, useRef, useState } from 'react'
 import { supabase, Member } from '@/lib/supabase'
 import { DinoGame } from '@/components/DinoGame'
 import { FlappyGame } from '@/components/FlappyGame'
+import { validatePin } from '@/app/actions/authActions'
+import { getOrCreateSession, markAttendance } from '@/app/actions/attendanceActions'
 
 const LOGO_URL = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/assets/Booster.jpg`
 const VIDEO_INTRO = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/assets/BOOSTER_INTRO.webm`
 const GAME_BG_FRAME = 1
-const ADMIN_PIN = '2019'
+// ADMIN_PIN은 서버 액션(authActions.ts)에서 process.env.ADMIN_PIN으로 검증
 const ADMIN_NAMES = ['권경민', '박진혁', '백인경', '이종남', '최석진', '하이안', '황진석']
 
 function getKSTNow() {
@@ -16,7 +18,11 @@ function getKSTNow() {
 }
 
 function getTodayKST(): string {
-  return getKSTNow().toISOString().slice(0, 10)
+  const now = getKSTNow()
+  const y = now.getFullYear()
+  const m = String(now.getMonth() + 1).padStart(2, '0')
+  const d = String(now.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
 }
 
 // --- Weather ---
@@ -83,16 +89,6 @@ function WeatherAnimation({ pty, sky }: { pty: string; sky: string }) {
 
   return (
     <div style={{ position:'absolute', inset:0, overflow:'hidden', pointerEvents:'none' }}>
-      <style>{`
-        @keyframes wxRain { from{transform:translateY(-40px)} to{transform:translateY(112vh)} }
-        @keyframes wxSnow { from{transform:translateY(-20px) translateX(0)} to{transform:translateY(112vh) translateX(var(--dx))} }
-        @keyframes wxGlow { 0%,100%{opacity:.72;transform:scale(1)} 50%{opacity:1;transform:scale(1.12)} }
-        @keyframes wxRayR { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-        @keyframes wxCldA { 0%,100%{transform:translateX(0)} 50%{transform:translateX(22px)} }
-        @keyframes wxCldB { 0%,100%{transform:translateX(0)} 50%{transform:translateX(-16px)} }
-        @keyframes wxCldC { 0%,100%{transform:translateX(0)} 50%{transform:translateX(11px)} }
-      `}</style>
-
       {/* ☀️ 맑음 — 화면 상단 중앙, 큰 글로우 + 회전 광선 */}
       {clear && (
         <div style={{ position:'absolute', top:'2%', left:'50%', transform:'translateX(-50%)' }}>
@@ -177,22 +173,6 @@ function WeatherAnimation({ pty, sky }: { pty: string; sky: string }) {
 const WEATHER_MAP_URL =
   'https://www.weather.go.kr/wgis-nuri/html/map.html?location=127.085934987551,37.1993699999133'
 
-function WeatherMap() {
-  return (
-    <div style={{
-      width: '100%', height: 165,
-      borderRadius: 18, overflow: 'hidden',
-      background: 'rgba(0,0,0,.3)',
-    }}>
-      <iframe
-        src={WEATHER_MAP_URL}
-        title="동탄 여울공원 날씨 지도"
-        style={{ width: '100%', height: '100%', border: 'none' }}
-        scrolling="no"
-      />
-    </div>
-  )
-}
 
 function getWeatherBg(forecasts: ForecastItem[] | null): string {
   const h = getKSTNow().getHours()
@@ -320,8 +300,7 @@ function WeatherPage({ forecasts }: { forecasts: ForecastItem[] | null }) {
           <iframe
             src={WEATHER_MAP_URL}
             title="동탄 여울공원 날씨 지도"
-            style={{ width:'100%', height:'100%', border:'none' }}
-            scrolling="no"
+            style={{ width:'100%', height:'100%', border:'none', overflow:'hidden' }}
           />
         </div>
       </div>
@@ -529,50 +508,63 @@ export default function HomePage() {
 
   async function loadLeaderboard() {
     setLeaderboardLoading(true)
-    const now = getKSTNow()
-    const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
-    const { data: resetData } = await supabase
-      .from('leaderboard_resets').select('reset_at')
-      .order('reset_at', { ascending: false }).limit(1).maybeSingle()
-    const resetDate = resetData?.reset_at?.slice(0, 10)
-    const startDate = resetDate && resetDate > monthStart ? resetDate : monthStart
-    const { data: sessionData } = await supabase.from('sessions').select('id').gte('date', startDate)
-    const sessionIds = (sessionData ?? []).map((s: { id: number }) => s.id)
-    if (sessionIds.length === 0) { setLeaderboard([]); setLeaderboardLoading(false); return }
-    const { data } = await supabase
-      .from('attendance').select('member_id, members!inner(name)').in('session_id', sessionIds)
-    setLeaderboard(computeRanks((data ?? []) as unknown as AttendanceRow[]))
-    setLeaderboardLoading(false)
+    try {
+      const now = getKSTNow()
+      const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
+      const { data: resetData } = await supabase
+        .from('leaderboard_resets').select('reset_at')
+        .order('reset_at', { ascending: false }).limit(1).maybeSingle()
+      const resetDate = resetData?.reset_at?.slice(0, 10)
+      const startDate = resetDate && resetDate > monthStart ? resetDate : monthStart
+      const { data: sessionData } = await supabase.from('sessions').select('id').gte('date', startDate)
+      const sessionIds = (sessionData ?? []).map((s: { id: number }) => s.id)
+      if (sessionIds.length === 0) { setLeaderboard([]); return }
+      const { data } = await supabase
+        .from('attendance').select('member_id, members!inner(name)').in('session_id', sessionIds)
+      setLeaderboard(computeRanks((data ?? []) as unknown as AttendanceRow[]))
+    } catch {
+      setLeaderboard([])
+    } finally {
+      setLeaderboardLoading(false)
+    }
   }
 
   async function loadAttendanceData() {
     setAttendanceLoading(true)
-    const today = getTodayKST()
-    const { data: existing } = await supabase.from('sessions').select('id').eq('date', today).single()
-    let sid = existing?.id
-    if (!sid) {
-      const { data: created } = await supabase.from('sessions').insert({ date: today }).select('id').single()
-      sid = created?.id
+    try {
+      const today = getTodayKST()
+      const { sessionId: sid, error: sessionError } = await getOrCreateSession(today)
+      if (sessionError || !sid) { setAttendanceLoading(false); return }
+      setSessionId(sid)
+      const [{ data: membersData }, { data: attendanceData }] = await Promise.all([
+        supabase.from('members').select('*').order('name'),
+        supabase.from('attendance').select('member_id').eq('session_id', sid),
+      ])
+      setMembers(membersData ?? [])
+      setCheckedInIds(new Set((attendanceData ?? []).map((a: { member_id: number }) => a.member_id)))
+    } catch {
+      // 실패 시 빈 상태 유지
+    } finally {
+      setAttendanceLoading(false)
     }
-    setSessionId(sid ?? null)
-    const [{ data: membersData }, { data: attendanceData }] = await Promise.all([
-      supabase.from('members').select('*').order('name'),
-      sid ? supabase.from('attendance').select('member_id').eq('session_id', sid) : Promise.resolve({ data: [] }),
-    ])
-    setMembers(membersData ?? [])
-    setCheckedInIds(new Set((attendanceData ?? []).map((a: { member_id: number }) => a.member_id)))
-    setAttendanceLoading(false)
   }
 
   async function handleSelect(member: Member) {
     if (!sessionId || checkedInIds.has(member.id)) return
-    await supabase.from('attendance').insert({ session_id: sessionId, member_id: member.id })
+    // 낙관적 업데이트
     setCheckedInIds(prev => new Set(prev).add(member.id))
     setDoneName(member.name)
     setStep('done')
+    // 서버 insert — 실패 시 롤백
+    const { error } = await markAttendance(sessionId, member.id)
+    if (error) {
+      setCheckedInIds(prev => { const s = new Set(prev); s.delete(member.id); return s })
+      setStep('search')
+      setDoneName('')
+    }
   }
 
-  function handlePinDigit(idx: number, val: string) {
+  async function handlePinDigit(idx: number, val: string) {
     if (!/^\d*$/.test(val)) return
     const next = [...pinDigits]
     next[idx] = val.slice(-1)
@@ -581,7 +573,8 @@ export default function HomePage() {
     if (val && idx < 3) pinRefs.current[idx + 1]?.focus()
     if (next.every(d => d !== '')) {
       const code = next.join('')
-      if (code === ADMIN_PIN) {
+      const valid = await validatePin(code)
+      if (valid) {
         setView('attendance'); setPinDigits(['', '', '', ''])
       } else {
         setPinError(true); setPinDigits(['', '', '', ''])
