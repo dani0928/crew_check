@@ -224,66 +224,81 @@ function WeatherPage({ forecasts }: { forecasts: ForecastItem[] | null }) {
   const maxTemp = temps.length ? Math.max(...temps) : null
   const minTemp = temps.length ? Math.min(...temps) : null
 
+  /*
+   * ── 타이포그래피 규정 ─────────────────────────────────────────
+   * 폰트: -apple-system, "SF Pro Display", system-ui, sans-serif
+   *
+   * Display  clamp(72,19vw,90px)  100  메인 수치 (기온)
+   * H1       30px  700  페이지 제목 (출석 체크)
+   * H2       22px  600  앱 이름, 도시명
+   * H3       20px  600  섹션 제목, 탭 레이블
+   * Body L   18px  500  입력창 텍스트
+   * Body     16px  400  일반 콘텐츠 (이름, 날씨 조건)
+   * Body S   14px  400  보조 텍스트, 기온 수치
+   * Caption  12px  400  타임스탬프, 부제
+   * Label    11px  600  섹션 라벨 (UPPERCASE + tracking 1.5)
+   *
+   * 강조 원칙
+   *  - 수치/핵심 정보 → 크기로 강조
+   *  - 계층 표현 → opacity (primary 1.0 / secondary 0.65 / muted 0.45)
+   *  - 섹션 구분 → Label (11px 600 UPPERCASE letterSpacing 1.5)
+   *  - 상호작용 요소 → weight 500+
+   * ────────────────────────────────────────────────────────────
+   */
   return (
     <div style={{
-      position: 'relative', height: '100dvh',
-      display: 'flex', flexDirection: 'column', alignItems: 'center',
-      color: 'white', overflow: 'hidden',
-      fontFamily: '-apple-system,"SF Pro Display",system-ui,sans-serif',
+      position:'relative', height:'100dvh',
+      display:'flex', flexDirection:'column', alignItems:'center',
+      color:'white', overflow:'hidden',
+      fontFamily:'-apple-system,"SF Pro Display",system-ui,sans-serif',
     }}>
       {current && <WeatherAnimation pty={current.pty} sky={current.sky} />}
 
-      {/* 도시명 */}
-      <div style={{ marginTop:28, textAlign:'center', position:'relative', zIndex:1 }}>
-        <p style={{ fontSize:22, fontWeight:300, margin:0, letterSpacing:0.3 }}>동탄 여울공원</p>
-        <p style={{ fontSize:12, margin:'3px 0 0', opacity:.55 }}>화성시 · {timeStr} 기준</p>
+      {/* H2 — 도시명 */}
+      <div style={{ marginTop:24, textAlign:'center', position:'relative', zIndex:1 }}>
+        <p style={{ fontSize:22, fontWeight:600, margin:0, letterSpacing:0.2 }}>동탄 여울공원</p>
+        {/* Caption — 메타 */}
+        <p style={{ fontSize:12, fontWeight:400, margin:'3px 0 0', opacity:.55 }}>화성시 · {timeStr} 기준</p>
       </div>
 
-      {/* 온도 */}
-      <div style={{ position:'relative', zIndex:1, lineHeight:0.9, marginTop:2 }}>
+      {/* Display — 기온 */}
+      <div style={{ position:'relative', zIndex:1, lineHeight:0.9, marginTop:4 }}>
         <p style={{ fontSize:'clamp(72px,19vw,90px)', fontWeight:100, margin:0, letterSpacing:-3 }}>
           {current ? `${current.t1h}°` : '--°'}
         </p>
       </div>
 
-      {/* 날씨 조건 + 최고·최저 */}
-      <div style={{ position:'relative', zIndex:1, textAlign:'center', marginTop:4 }}>
-        <p style={{ fontSize:17, margin:0, fontWeight:400, opacity:.88 }}>
+      {/* Body — 날씨 조건 + Body S — 최고·최저 */}
+      <div style={{ position:'relative', zIndex:1, textAlign:'center', marginTop:5 }}>
+        <p style={{ fontSize:16, margin:0, fontWeight:400, opacity:.88 }}>
           {current ? ptyLabel(current.pty, current.sky) : ''}
         </p>
         {maxTemp !== null && minTemp !== null && (
-          <p style={{ fontSize:13, margin:'3px 0 0', opacity:.58, fontWeight:400 }}>
+          <p style={{ fontSize:14, margin:'3px 0 0', opacity:.60, fontWeight:400 }}>
             최고 {maxTemp}°  ·  최저 {minTemp}°
           </p>
         )}
       </div>
 
-      {/* 지도 */}
-      {current && (
-        <div style={{ position:'relative', zIndex:1, width:'100%', padding:'0 16px', marginTop:14, marginBottom:0 }}>
-          <WeatherMap />
-        </div>
-      )}
-
-      <div style={{ flex:1 }} />
-
-      {/* 시간별 예보 — 하단 고정 유리 카드 */}
-      <div style={{ width:'100%', padding:'0 16px', paddingBottom:'max(44px, calc(env(safe-area-inset-bottom) + 28px))', position:'relative', zIndex:1 }}>
+      {/* Label — 시간별 예보 카드 (온도 바로 아래) */}
+      <div style={{ width:'100%', padding:'0 16px', marginTop:14, position:'relative', zIndex:1 }}>
         <div style={{
           background:'rgba(255,255,255,0.13)',
           backdropFilter:'blur(40px)', WebkitBackdropFilter:'blur(40px)',
           borderRadius:22, border:'0.5px solid rgba(255,255,255,0.22)',
-          padding:'12px 20px 14px',
+          padding:'11px 20px 13px',
         }}>
-          <p style={{ fontSize:11, fontWeight:600, textTransform:'uppercase', letterSpacing:1.6, opacity:.52, margin:'0 0 10px' }}>
+          <p style={{ fontSize:11, fontWeight:600, textTransform:'uppercase', letterSpacing:1.5, opacity:.52, margin:'0 0 10px' }}>
             시간별 예보
           </p>
           {forecasts && forecasts.length > 0 ? (
-            <div style={{ display:'flex', gap:0, overflowX:'auto', paddingBottom:2, scrollbarWidth:'none', justifyContent:'space-evenly' }}>
+            <div style={{ display:'flex', overflowX:'auto', scrollbarWidth:'none', justifyContent:'space-evenly' }}>
               {forecasts.map((f, i) => (
                 <div key={f.time} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:5, flexShrink:0 }}>
+                  {/* Caption */}
                   <span style={{ fontSize:12, opacity:.65, fontWeight:400 }}>{i === 0 ? '지금' : `${f.time.slice(0,2)}시`}</span>
                   <span style={{ fontSize:20 }}>{ptyIcon(f.pty, f.sky)}</span>
+                  {/* Body S */}
                   <span style={{ fontSize:14, fontWeight:500 }}>{f.t1h}°</span>
                 </div>
               ))}
@@ -291,6 +306,23 @@ function WeatherPage({ forecasts }: { forecasts: ForecastItem[] | null }) {
           ) : (
             <p style={{ fontSize:13, opacity:.45, margin:0 }}>불러오는 중...</p>
           )}
+        </div>
+      </div>
+
+      {/* 지도 — 나머지 공간 모두 차지 (flex:1) */}
+      <div style={{
+        position:'relative', zIndex:1,
+        width:'100%', flex:1, minHeight:0,
+        padding:'12px 16px 0',
+        paddingBottom:'max(36px, calc(env(safe-area-inset-bottom) + 20px))',
+      }}>
+        <div style={{ height:'100%', borderRadius:18, overflow:'hidden', background:'rgba(0,0,0,.3)' }}>
+          <iframe
+            src={WEATHER_MAP_URL}
+            title="동탄 여울공원 날씨 지도"
+            style={{ width:'100%', height:'100%', border:'none' }}
+            scrolling="no"
+          />
         </div>
       </div>
     </div>
