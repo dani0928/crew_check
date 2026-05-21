@@ -180,7 +180,7 @@ const WEATHER_MAP_URL =
 function WeatherMap() {
   return (
     <div style={{
-      width: '100%', height: 220,
+      width: '100%', height: 165,
       borderRadius: 18, overflow: 'hidden',
       background: 'rgba(0,0,0,.3)',
     }}>
@@ -234,25 +234,25 @@ function WeatherPage({ forecasts }: { forecasts: ForecastItem[] | null }) {
       {current && <WeatherAnimation pty={current.pty} sky={current.sky} />}
 
       {/* 도시명 */}
-      <div style={{ marginTop:'clamp(52px,15dvh,100px)', textAlign:'center', position:'relative', zIndex:1 }}>
-        <p style={{ fontSize:28, fontWeight:300, margin:0, letterSpacing:0.3 }}>동탄 여울공원</p>
-        <p style={{ fontSize:14, margin:'4px 0 0', opacity:.55 }}>화성시 · {timeStr} 기준</p>
+      <div style={{ marginTop:28, textAlign:'center', position:'relative', zIndex:1 }}>
+        <p style={{ fontSize:22, fontWeight:300, margin:0, letterSpacing:0.3 }}>동탄 여울공원</p>
+        <p style={{ fontSize:12, margin:'3px 0 0', opacity:.55 }}>화성시 · {timeStr} 기준</p>
       </div>
 
-      {/* 온도 — 극세, 아주 크게 */}
+      {/* 온도 */}
       <div style={{ position:'relative', zIndex:1, lineHeight:0.9, marginTop:2 }}>
-        <p style={{ fontSize:'clamp(96px,26vw,130px)', fontWeight:100, margin:0, letterSpacing:-4 }}>
+        <p style={{ fontSize:'clamp(72px,19vw,90px)', fontWeight:100, margin:0, letterSpacing:-3 }}>
           {current ? `${current.t1h}°` : '--°'}
         </p>
       </div>
 
       {/* 날씨 조건 + 최고·최저 */}
-      <div style={{ position:'relative', zIndex:1, textAlign:'center', marginTop:6 }}>
-        <p style={{ fontSize:20, margin:0, fontWeight:400, opacity:.88 }}>
+      <div style={{ position:'relative', zIndex:1, textAlign:'center', marginTop:4 }}>
+        <p style={{ fontSize:17, margin:0, fontWeight:400, opacity:.88 }}>
           {current ? ptyLabel(current.pty, current.sky) : ''}
         </p>
         {maxTemp !== null && minTemp !== null && (
-          <p style={{ fontSize:16, margin:'5px 0 0', opacity:.58, fontWeight:400 }}>
+          <p style={{ fontSize:13, margin:'3px 0 0', opacity:.58, fontWeight:400 }}>
             최고 {maxTemp}°  ·  최저 {minTemp}°
           </p>
         )}
@@ -260,7 +260,7 @@ function WeatherPage({ forecasts }: { forecasts: ForecastItem[] | null }) {
 
       {/* 지도 */}
       {current && (
-        <div style={{ position:'relative', zIndex:1, width:'100%', padding:'0 16px', marginTop: 24, marginBottom: 8 }}>
+        <div style={{ position:'relative', zIndex:1, width:'100%', padding:'0 16px', marginTop:14, marginBottom:0 }}>
           <WeatherMap />
         </div>
       )}
@@ -268,23 +268,23 @@ function WeatherPage({ forecasts }: { forecasts: ForecastItem[] | null }) {
       <div style={{ flex:1 }} />
 
       {/* 시간별 예보 — 하단 고정 유리 카드 */}
-      <div style={{ width:'100%', padding:'0 16px', paddingBottom:'max(80px, calc(env(safe-area-inset-bottom) + 64px))', position:'relative', zIndex:1 }}>
+      <div style={{ width:'100%', padding:'0 16px', paddingBottom:'max(44px, calc(env(safe-area-inset-bottom) + 28px))', position:'relative', zIndex:1 }}>
         <div style={{
           background:'rgba(255,255,255,0.13)',
           backdropFilter:'blur(40px)', WebkitBackdropFilter:'blur(40px)',
           borderRadius:22, border:'0.5px solid rgba(255,255,255,0.22)',
-          padding:'14px 20px 18px',
+          padding:'12px 20px 14px',
         }}>
-          <p style={{ fontSize:11, fontWeight:600, textTransform:'uppercase', letterSpacing:1.6, opacity:.52, margin:'0 0 14px' }}>
+          <p style={{ fontSize:11, fontWeight:600, textTransform:'uppercase', letterSpacing:1.6, opacity:.52, margin:'0 0 10px' }}>
             시간별 예보
           </p>
           {forecasts && forecasts.length > 0 ? (
             <div style={{ display:'flex', gap:0, overflowX:'auto', paddingBottom:2, scrollbarWidth:'none', justifyContent:'space-evenly' }}>
               {forecasts.map((f, i) => (
-                <div key={f.time} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:7, flexShrink:0 }}>
-                  <span style={{ fontSize:13, opacity:.65, fontWeight:400 }}>{i === 0 ? '지금' : `${f.time.slice(0,2)}시`}</span>
-                  <span style={{ fontSize:24 }}>{ptyIcon(f.pty, f.sky)}</span>
-                  <span style={{ fontSize:16, fontWeight:500 }}>{f.t1h}°</span>
+                <div key={f.time} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:5, flexShrink:0 }}>
+                  <span style={{ fontSize:12, opacity:.65, fontWeight:400 }}>{i === 0 ? '지금' : `${f.time.slice(0,2)}시`}</span>
+                  <span style={{ fontSize:20 }}>{ptyIcon(f.pty, f.sky)}</span>
+                  <span style={{ fontSize:14, fontWeight:500 }}>{f.t1h}°</span>
                 </div>
               ))}
             </div>
