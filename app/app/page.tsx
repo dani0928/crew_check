@@ -84,13 +84,12 @@ function getWeatherBg(forecasts: ForecastItem[] | null): string {
 }
 
 function WeatherPage({ forecasts }: { forecasts: ForecastItem[] | null }) {
-  const [now, setNow] = useState(getKSTNow())
-  useEffect(() => {
-    const t = setInterval(() => setNow(getKSTNow()), 60 * 1000)
-    return () => clearInterval(t)
-  }, [])
-  const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`
+  // "지금" 슬롯의 fcstTime(예: "1400")을 "14:00 기준"으로 표시
+  // getKSTNow().getHours()는 KST 브라우저에서 +9가 중복 적용되어 틀림
   const current = forecasts?.[0]
+  const timeStr = current?.time
+    ? `${current.time.slice(0, 2)}:${current.time.slice(2, 4)}`
+    : null
   const temps = (forecasts ?? []).map(f => parseInt(f.t1h)).filter(n => !isNaN(n))
   const maxTemp = temps.length ? Math.max(...temps) : null
   const minTemp = temps.length ? Math.min(...temps) : null
@@ -129,7 +128,9 @@ function WeatherPage({ forecasts }: { forecasts: ForecastItem[] | null }) {
       <div style={{ marginTop:24, textAlign:'center', position:'relative', zIndex:1 }}>
         <p style={{ fontSize:22, fontWeight:600, margin:0, letterSpacing:0.2 }}>동탄 여울공원</p>
         {/* Caption — 메타 */}
-        <p style={{ fontSize:12, fontWeight:400, margin:'3px 0 0', opacity:.55 }}>화성시 · {timeStr} 기준</p>
+        <p style={{ fontSize:12, fontWeight:400, margin:'3px 0 0', opacity:.55 }}>
+          화성시{timeStr ? ` · ${timeStr} 기준` : ''}
+        </p>
       </div>
 
       {/* Display — 기온 */}
