@@ -30,6 +30,114 @@ function getTodayKST(): string {
 // --- Weather ---
 type ForecastItem = { time: string; pty: string; sky: string; t1h: string; lgt: string }
 
+// --- Air Quality ---
+type AirData = {
+  pm25: string; pm25Grade: string; pm25Label: string
+  pm10: string; pm10Grade: string; pm10Label: string
+  dataTime: string; station: string
+} | null
+
+function airGradeInfo(grade: string): { color: string; pulseClass: string } {
+  if (grade === '1') return { color: '#5ACC8C', pulseClass: 'air-pulse-slow' }
+  if (grade === '2') return { color: '#FAD148', pulseClass: 'air-pulse-slow' }
+  if (grade === '3') return { color: '#FF8C42', pulseClass: 'air-pulse-mid'  }
+  if (grade === '4') return { color: '#FF4444', pulseClass: 'air-pulse-fast' }
+  return { color: 'rgba(255,255,255,0.35)', pulseClass: '' }
+}
+
+function AirGauge({
+  name, value, grade, label, maxVal,
+}: { name: string; value: string; grade: string; label: string; maxVal: number }) {
+  const { color, pulseClass } = airGradeInfo(grade)
+  const r     = 33
+  const circ  = 2 * Math.PI * r
+  const num   = parseFloat(value)
+  const pct   = isNaN(num) ? 0 : Math.min(num / maxVal, 1)
+  const offset = circ * (1 - pct)
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:8 }}>
+      <div style={{ position:'relative', width:82, height:82 }}>
+        {/* pulse ring */}
+        {pulseClass && (
+          <div className={`air-pulse-ring ${pulseClass}`} style={{ color }} />
+        )}
+        {/* SVG ring */}
+        <svg width="82" height="82" viewBox="0 0 82 82" style={{ transform:'rotate(-90deg)' }}>
+          <circle cx="41" cy="41" r={r} fill="none"
+            stroke="rgba(255,255,255,0.09)" strokeWidth="5" />
+          <circle cx="41" cy="41" r={r} fill="none"
+            stroke={color} strokeWidth="5"
+            strokeDasharray={circ} strokeDashoffset={offset}
+            strokeLinecap="round"
+            style={{ transition:'stroke-dashoffset 1.2s ease' }}
+          />
+        </svg>
+        {/* 중앙 수치 */}
+        <div style={{
+          position:'absolute', inset:0,
+          display:'flex', flexDirection:'column',
+          alignItems:'center', justifyContent:'center',
+        }}>
+          <span style={{ fontSize:17, fontWeight:600, color:'rgba(255,255,255,0.92)', lineHeight:1 }}>
+            {isNaN(num) ? '-' : value}
+          </span>
+          <span style={{ fontSize:8, color:'rgba(255,255,255,0.38)', marginTop:2 }}>µg/m³</span>
+        </div>
+      </div>
+      <div style={{ textAlign:'center' }}>
+        <p style={{ fontSize:10, fontWeight:600, letterSpacing:1.2, textTransform:'uppercase', color:'rgba(255,255,255,0.48)', margin:0 }}>
+          {name}
+        </p>
+        <p style={{ fontSize:13, fontWeight:600, color, margin:'3px 0 0' }}>{label}</p>
+      </div>
+    </div>
+  )
+}
+
+function AirSection({ airData }: { airData: AirData }) {
+  if (!airData) return null
+  return (
+    <div style={{ width:'100%', padding:'12px 16px 0', position:'relative', zIndex:1 }}>
+      <div style={{
+        background:'rgba(255,255,255,0.10)',
+        backdropFilter:'blur(40px)', WebkitBackdropFilter:'blur(40px)',
+        borderRadius:22, border:'0.5px solid rgba(255,255,255,0.18)',
+        padding:'11px 20px 14px',
+      }}>
+        <p style={{ fontSize:11, fontWeight:600, textTransform:'uppercase', letterSpacing:1.5, opacity:.52, margin:'0 0 14px' }}>
+          대기질
+        </p>
+        <div style={{ display:'flex', justifyContent:'space-evenly' }}>
+          <AirGauge name="PM2.5" value={airData.pm25} grade={airData.pm25Grade} label={airData.pm25Label} maxVal={75} />
+          <AirGauge name="PM10"  value={airData.pm10} grade={airData.pm10Grade} label={airData.pm10Label} maxVal={150} />
+        </div>
+        <p style={{ fontSize:10, color:'rgba(255,255,255,0.28)', textAlign:'right', margin:'10px 0 0' }}>
+          에어코리아 · {airData.station} 측정소
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function AirBadge({ airData }: { airData: AirData }) {
+  if (!airData || airData.pm25 === '-') return null
+  const { color } = airGradeInfo(airData.pm25Grade)
+  return (
+    <div className="flex items-center gap-1.5 bg-white/10 border border-white/15 rounded-full px-3 py-1 text-white">
+      <span style={{
+        width:8, height:8, borderRadius:'50%',
+        backgroundColor: color,
+        boxShadow: `0 0 6px ${color}`,
+        display:'inline-block', flexShrink:0,
+      }} />
+      <span style={{ fontSize:12, opacity:.75 }}>
+        PM2.5 {airData.pm25Label}
+      </span>
+    </div>
+  )
+}
+
 function ptyIcon(pty: string, sky: string): string {
   if (pty === '1') return '🌧'
   if (pty === '2') return '🌨'
@@ -83,7 +191,7 @@ function getWeatherBg(forecasts: ForecastItem[] | null): string {
   return 'linear-gradient(180deg,#1e8edc 0%,#1468c4 45%,#0c4aaa 100%)'
 }
 
-function WeatherPage({ forecasts }: { forecasts: ForecastItem[] | null }) {
+function WeatherPage({ forecasts, airData }: { forecasts: ForecastItem[] | null; airData: AirData }) {
   // "지금" 슬롯의 fcstTime(예: "1400")을 "14:00 기준"으로 표시
   // getKSTNow().getHours()는 KST 브라우저에서 +9가 중복 적용되어 틀림
   const current = forecasts?.[0]
@@ -180,6 +288,9 @@ function WeatherPage({ forecasts }: { forecasts: ForecastItem[] | null }) {
           )}
         </div>
       </div>
+
+      {/* 대기질 카드 */}
+      <AirSection airData={airData} />
 
       {/* 지도 — 나머지 공간 모두 차지 (flex:1) */}
       <div style={{
@@ -354,6 +465,7 @@ export default function HomePage() {
   const [pageIndex, setPageIndex] = useState(0)
   const [gameOpen, setGameOpen]   = useState(false)
   const [forecasts, setForecasts] = useState<ForecastItem[] | null>(null)
+  const [airData,   setAirData]   = useState<AirData>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
   // PIN
@@ -398,6 +510,18 @@ export default function HomePage() {
     load()
     // 30분마다 자동 갱신 (기상청 초단기예보 발표 주기와 동일)
     const t = setInterval(load, 30 * 60 * 1000)
+    return () => clearInterval(t)
+  }, [])
+
+  // 대기질 1시간마다 갱신 (에어코리아 업데이트 주기)
+  useEffect(() => {
+    const loadAir = () =>
+      fetch('/api/air')
+        .then(r => r.json())
+        .then(d => { if (!d.error) setAirData(d as AirData) })
+        .catch(() => {})
+    loadAir()
+    const t = setInterval(loadAir, 60 * 60 * 1000)
     return () => clearInterval(t)
   }, [])
 
@@ -688,6 +812,7 @@ export default function HomePage() {
           <p className="text-xl font-bold text-white mb-1">러닝크루 부스터</p>
           <p className="text-sm text-white/40 mb-3">매주 월·수·토 함께 달려요</p>
           <WeatherBadge forecasts={forecasts} />
+          <AirBadge airData={airData} />
 
           {/* 리더보드 */}
           <div className="w-full max-w-sm mb-6">
@@ -726,7 +851,7 @@ export default function HomePage() {
           className="flex-none overflow-y-auto overflow-x-hidden"
           style={{ width: '100vw', height: '100dvh', scrollSnapAlign: 'start' }}
         >
-          <WeatherPage forecasts={forecasts} />
+          <WeatherPage forecasts={forecasts} airData={airData} />
         </div>
       </div>
 
