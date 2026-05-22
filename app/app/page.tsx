@@ -317,6 +317,137 @@ function WeatherPage({ forecasts, airData }: { forecasts: ForecastItem[] | null;
   )
 }
 
+// --- Calendar ---
+const MAY_EVENTS: Record<number, string> = {
+  2:  '여울 조깅',
+  4:  '여울 100/100 인터벌',
+  5:  '화성 효 마라톤',
+  6:  '오산천 조깅',
+  9:  '광교산 트레일러닝',
+  10: '용인마라톤',
+  11: '여울 300/100 인터벌',
+  13: '치동천 조깅',
+  16: '팔달산 LSD',
+  18: '여울 400/200 인터벌',
+  20: '기흥호수 조깅',
+  23: '여울-필봉산 트레일러닝',
+  25: '휴무',
+  27: '800/200 인터벌',
+  30: '여울-오산천 LSD',
+}
+const MAY_HOLIDAYS: Record<number, string> = {
+  5:  '어린이날',
+  24: '부처님오신날',
+}
+const DAY_HEADERS = ['일', '월', '화', '수', '목', '금', '토']
+const MAY_START_DOW = 5  // 2026-05-01 = 금요일(5)
+const MAY_DAYS = 31
+
+function CalendarPage() {
+  const kst     = getKSTNow()
+  const isMay26 = kst.getUTCMonth() === 4 && kst.getUTCFullYear() === 2026
+  const todayD  = isMay26 ? kst.getUTCDate() : -1
+
+  // 앞 빈칸 + 1~31 + 뒷 빈칸
+  const cells: (number | null)[] = [
+    ...Array(MAY_START_DOW).fill(null),
+    ...Array.from({ length: MAY_DAYS }, (_, i) => i + 1),
+  ]
+  while (cells.length % 7 !== 0) cells.push(null)
+
+  return (
+    <div style={{
+      height: '100dvh', overflowY: 'auto', scrollbarWidth: 'none',
+      background: 'linear-gradient(180deg,#0a1628 0%,#0f1e3a 55%,#0a1628 100%)',
+      color: 'white',
+      fontFamily: 'Pretendard,-apple-system,BlinkMacSystemFont,sans-serif',
+    }}>
+      {/* 헤더 */}
+      <div style={{ padding: '52px 20px 20px', textAlign: 'center' }}>
+        <p style={{ fontSize:11, fontWeight:600, letterSpacing:2, textTransform:'uppercase', opacity:.42, margin:0 }}>
+          러닝크루 부스터
+        </p>
+        <p style={{ fontSize:26, fontWeight:700, margin:'6px 0 0', letterSpacing:-.5 }}>
+          2026년 5월
+        </p>
+      </div>
+
+      {/* 글래스 카드 */}
+      <div style={{
+        margin:'0 14px',
+        background:'rgba(255,255,255,0.07)',
+        backdropFilter:'blur(24px)', WebkitBackdropFilter:'blur(24px)',
+        borderRadius:24, border:'0.5px solid rgba(255,255,255,0.13)',
+        overflow:'hidden',
+      }}>
+        {/* 요일 헤더 */}
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)' }}>
+          {DAY_HEADERS.map((h, i) => (
+            <div key={h} style={{
+              textAlign:'center', padding:'12px 0 10px',
+              fontSize:11, fontWeight:600, letterSpacing:.3,
+              color: i===0 ? '#FF6B6B' : i===6 ? '#60B8FF' : 'rgba(255,255,255,0.42)',
+            }}>
+              {h}
+            </div>
+          ))}
+        </div>
+        <div style={{ height:'0.5px', background:'rgba(255,255,255,0.09)' }} />
+
+        {/* 날짜 셀 */}
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', padding:'3px' }}>
+          {cells.map((day, idx) => {
+            if (day === null) return <div key={`e${idx}`} style={{ minHeight:78 }} />
+            const dow     = idx % 7
+            const isSun   = dow === 0
+            const isSatC  = dow === 6
+            const isHol   = !!MAY_HOLIDAYS[day]
+            const isToday = day === todayD
+            const event   = MAY_EVENTS[day]
+            const holiday = MAY_HOLIDAYS[day]
+            const dateCol = (isSun || isHol) ? '#FF6B6B' : isSatC ? '#60B8FF' : 'rgba(255,255,255,0.88)'
+
+            return (
+              <div key={day} style={{
+                minHeight:78, padding:'6px 2px 5px',
+                display:'flex', flexDirection:'column', alignItems:'center', gap:2,
+                borderRadius:12,
+                background: isToday ? 'rgba(255,255,255,0.06)' : 'transparent',
+              }}>
+                {/* 날짜 번호 */}
+                <div style={{
+                  width:26, height:26, borderRadius:'50%', flexShrink:0,
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  background: isToday ? 'rgba(96,184,255,0.55)' : 'transparent',
+                  boxShadow: isToday ? '0 0 10px rgba(96,184,255,0.4)' : 'none',
+                }}>
+                  <span style={{ fontSize:12, fontWeight: isToday ? 700 : 500, color: isToday ? '#fff' : dateCol }}>
+                    {day}
+                  </span>
+                </div>
+                {/* 공휴일 */}
+                {holiday && (
+                  <span style={{ fontSize:8, color:'#FF8585', fontWeight:600, lineHeight:1.2, textAlign:'center', letterSpacing:-.2 }}>
+                    {holiday}
+                  </span>
+                )}
+                {/* 일정 */}
+                {event && (
+                  <span style={{ fontSize:8, color:'rgba(255,255,255,0.70)', lineHeight:1.3, textAlign:'center', letterSpacing:-.3, wordBreak:'keep-all' }}>
+                    {event}
+                  </span>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      <div style={{ height:'max(48px,calc(env(safe-area-inset-bottom) + 36px))' }} />
+    </div>
+  )
+}
+
 // --- WeatherBadge (메인 화면용 소형 뱃지) ---
 function WeatherBadge({ forecasts }: { forecasts: ForecastItem[] | null }) {
   if (!forecasts || forecasts.length === 0) return null
@@ -764,10 +895,16 @@ export default function HomePage() {
         style={{ opacity: pageIndex === 0 ? 1 : 0 }}
       />
 
-      {/* 배경 2: 날씨 페이지 (그라디언트) */}
+      {/* 배경 2: 캘린더 페이지 */}
       <div
         className="absolute inset-0 transition-opacity duration-500"
-        style={{ opacity: pageIndex === 1 ? 1 : 0, background: getWeatherBg(forecasts) }}
+        style={{ opacity: pageIndex === 1 ? 1 : 0, background: 'linear-gradient(180deg,#0a1628 0%,#0f1e3a 55%,#0a1628 100%)' }}
+      />
+
+      {/* 배경 3: 날씨 페이지 (그라디언트) */}
+      <div
+        className="absolute inset-0 transition-opacity duration-500"
+        style={{ opacity: pageIndex === 2 ? 1 : 0, background: getWeatherBg(forecasts) }}
       />
 
       {/* PIN 모달 */}
@@ -862,7 +999,15 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Panel 2: 날씨 */}
+        {/* Panel 2: 캘린더 */}
+        <div
+          className="flex-none overflow-hidden"
+          style={{ width: '100vw', height: '100dvh', scrollSnapAlign: 'start' }}
+        >
+          <CalendarPage />
+        </div>
+
+        {/* Panel 3: 날씨 */}
         <div
           className="flex-none overflow-y-auto overflow-x-hidden"
           style={{ width: '100vw', height: '100dvh', scrollSnapAlign: 'start' }}
@@ -871,9 +1016,9 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* 페이지 인디케이터 (탭 가능) */}
+      {/* 페이지 인디케이터 (탭 가능) — 3개 */}
       <div className="fixed bottom-8 left-0 right-0 flex justify-center gap-3 z-20">
-        {[0, 1].map(idx => (
+        {[0, 1, 2].map(idx => (
           <button
             key={idx}
             onClick={() => scrollToPage(idx)}
