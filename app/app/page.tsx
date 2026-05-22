@@ -364,10 +364,7 @@ function CalendarPage() {
     }}>
       {/* 헤더 */}
       <div style={{ padding: '52px 20px 20px', textAlign: 'center' }}>
-        <p style={{ fontSize:11, fontWeight:600, letterSpacing:2, textTransform:'uppercase', opacity:.42, margin:0 }}>
-          러닝크루 부스터
-        </p>
-        <p style={{ fontSize:26, fontWeight:700, margin:'6px 0 0', letterSpacing:-.5 }}>
+        <p style={{ fontSize:26, fontWeight:700, margin:0, letterSpacing:-.5 }}>
           2026년 5월
         </p>
       </div>
@@ -395,10 +392,21 @@ function CalendarPage() {
         <div style={{ height:'0.5px', background:'rgba(255,255,255,0.09)' }} />
 
         {/* 날짜 셀 */}
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', padding:'3px' }}>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)' }}>
           {cells.map((day, idx) => {
-            if (day === null) return <div key={`e${idx}`} style={{ minHeight:78 }} />
+            if (day === null) {
+              const row = Math.floor(idx / 7)
+              const col = idx % 7
+              return (
+                <div key={`e${idx}`} style={{
+                  minHeight:78,
+                  borderTop: row > 0 ? '0.5px solid rgba(255,255,255,0.08)' : 'none',
+                  borderRight: col < 6 ? '0.5px solid rgba(255,255,255,0.08)' : 'none',
+                }} />
+              )
+            }
             const dow     = idx % 7
+            const row     = Math.floor(idx / 7)
             const isSun   = dow === 0
             const isSatC  = dow === 6
             const isHol   = !!MAY_HOLIDAYS[day]
@@ -411,7 +419,8 @@ function CalendarPage() {
               <div key={day} style={{
                 minHeight:78, padding:'6px 2px 5px',
                 display:'flex', flexDirection:'column', alignItems:'center', gap:2,
-                borderRadius:12,
+                borderTop: row > 0 ? '0.5px solid rgba(255,255,255,0.08)' : 'none',
+                borderRight: dow < 6 ? '0.5px solid rgba(255,255,255,0.08)' : 'none',
                 background: isToday ? 'rgba(255,255,255,0.06)' : 'transparent',
               }}>
                 {/* 날짜 번호 */}
