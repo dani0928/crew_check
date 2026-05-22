@@ -22,13 +22,13 @@ export default function AdminPage() {
   const [lastReset, setLastReset] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  // 일정 관리
+  // 일정 관리 — 일괄 편집
   const today = new Date()
-  const [calYear,  setCalYear]  = useState(today.getFullYear())
-  const [calMonth, setCalMonth] = useState(today.getMonth() + 1)
-  const [calEvents, setCalEvents] = useState<CalEvent[]>([])
-  const [newEventDate,  setNewEventDate]  = useState('')
-  const [newEventTitle, setNewEventTitle] = useState('')
+  const [calYear,    setCalYear]    = useState(today.getFullYear())
+  const [calMonth,   setCalMonth]   = useState(today.getMonth() + 1)
+  const [dayInputs,  setDayInputs]  = useState<Record<number, string>>({})
+  const [calSaving,  setCalSaving]  = useState(false)
+  const [calSaved,   setCalSaved]   = useState(false)
 
   useEffect(() => { loadSessions(); loadMembers(); loadLastReset() }, [])
   useEffect(() => { if (selectedDate) loadAttendance(selectedDate) }, [selectedDate])
@@ -97,31 +97,50 @@ export default function AdminPage() {
     if (fileRef.current) fileRef.current.value = ''
   }
 
+  function calDaysInMonth() { return new Date(calYear, calMonth, 0).getDate() }
+  function calPad(n: number) { return String(n).padStart(2, '0') }
+
   async function loadCalEvents() {
-    const p = (n: number) => String(n).padStart(2, '0')
-    const dim = new Date(calYear, calMonth, 0).getDate()
-    const start = `${calYear}-${p(calMonth)}-01`
-    const end   = `${calYear}-${p(calMonth)}-${p(dim)}`
+    const dim   = calDaysInMonth()
+    const start = `${calYear}-${calPad(calMonth)}-01`
+    const end   = `${calYear}-${calPad(calMonth)}-${calPad(dim)}`
     const { data } = await supabase
       .from('calendar_events')
-      .select('id, event_date, title')
+      .select('event_date, title')
       .gte('event_date', start)
       .lte('event_date', end)
-      .order('event_date')
-    setCalEvents(data ?? [])
+    const map: Record<number, string> = {}
+    for (const e of data ?? []) {
+      const d = parseInt(e.event_date.split('-')[2])
+      map[d] = e.title
+    }
+    setDayInputs(map)
+    setCalSaved(false)
   }
 
-  async function handleAddCalEvent() {
-    const title = newEventTitle.trim()
-    if (!newEventDate || !title) return
-    await supabase.from('calendar_events').insert({ event_date: newEventDate, title })
-    setNewEventDate(''); setNewEventTitle('')
-    loadCalEvents()
-  }
+  async function handleSaveAllEvents() {
+    setCalSaving(true)
+    const p    = calPad
+    const dim  = calDaysInMonth()
+    const start = `${calYear}-${p(calMonth)}-01`
+    const end   = `${calYear}-${p(calMonth)}-${p(dim)}`
 
-  async function handleDeleteCalEvent(id: number) {
-    await supabase.from('calendar_events').delete().eq('id', id)
-    loadCalEvents()
+    // 해당 월 전체 삭제 후 재삽입 (가장 단순하고 확실한 방식)
+    await supabase.from('calendar_events').delete()
+      .gte('event_date', start).lte('event_date', end)
+
+    const inserts = Object.entries(dayInputs)
+      .filter(([, title]) => title.trim())
+      .map(([day, title]) => ({
+        event_date: `${calYear}-${p(calMonth)}-${p(Number(day))}`,
+        title: title.trim(),
+      }))
+
+    if (inserts.length) await supabase.from('calendar_events').insert(inserts)
+
+    setCalSaving(false)
+    setCalSaved(true)
+    setTimeout(() => setCalSaved(false), 2500)
   }
 
   async function loadMonthStats(month: string) {
@@ -316,66 +335,73 @@ export default function AdminPage() {
             )}
           </div>
         )}
-        {/* 일정 관리 */}
-        {tab === 'calendar' && (
-          <div className="space-y-5">
-            {/* 월 이동 */}
-            <div className="flex items-center justify-between bg-gray-50 rounded-2xl px-5 py-3">
-              <button
-                onClick={() => calMonth === 1 ? (setCalYear(y=>y-1), setCalMonth(12)) : setCalMonth(m=>m-1)}
-                className="text-gray-400 hover:text-gray-700 text-xl px-2"
-              >‹</button>
-              <span className="text-sm font-semibold text-gray-800">{calYear}년 {calMonth}월</span>
-              <button
-                onClick={() => calMonth === 12 ? (setCalYear(y=>y+1), setCalMonth(1)) : setCalMonth(m=>m+1)}
-                className="text-gray-400 hover:text-gray-700 text-xl px-2"
-              >›</button>
-            </div>
-
-            {/* 일정 추가 폼 */}
-            <div className="space-y-2">
-              <input
-                type="date"
-                value={newEventDate}
-                onChange={e => setNewEventDate(e.target.value)}
-                className="w-full bg-gray-50 rounded-2xl px-5 py-4 text-sm text-gray-900 outline-none"
-              />
-              <div className="flex gap-2">
-                <input
-                  value={newEventTitle}
-                  onChange={e => setNewEventTitle(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleAddCalEvent()}
-                  placeholder="일정 내용 입력"
-                  className="flex-1 bg-gray-50 rounded-2xl px-5 py-4 text-sm text-gray-900 outline-none"
-                />
+        {/* 일정 관리 — 월별 일괄 편집 */}
+        {tab === 'calendar' && (() => {
+          const dim  = calDaysInMonth()
+          const days = Array.from({ length: dim }, (_, i) => i + 1)
+          const DOW  = ['일','월','화','수','목','금','토']
+          return (
+            <div className="space-y-4">
+              {/* 월 이동 */}
+              <div className="flex items-center justify-between bg-gray-50 rounded-2xl px-5 py-3">
                 <button
-                  onClick={handleAddCalEvent}
-                  className="px-5 py-4 bg-gray-900 text-white rounded-2xl text-sm font-medium"
-                >추가</button>
+                  onClick={() => calMonth === 1 ? (setCalYear(y=>y-1), setCalMonth(12)) : setCalMonth(m=>m-1)}
+                  className="text-gray-400 hover:text-gray-700 text-xl px-2"
+                >‹</button>
+                <span className="text-sm font-semibold text-gray-800">{calYear}년 {calMonth}월</span>
+                <button
+                  onClick={() => calMonth === 12 ? (setCalYear(y=>y+1), setCalMonth(1)) : setCalMonth(m=>m+1)}
+                  className="text-gray-400 hover:text-gray-700 text-xl px-2"
+                >›</button>
               </div>
-            </div>
 
-            {/* 일정 목록 */}
-            {calEvents.length === 0 ? (
-              <p className="text-center text-gray-300 py-12">이 달 일정이 없습니다.</p>
-            ) : (
-              <div className="space-y-2">
-                {calEvents.map(e => (
-                  <div key={e.id} className="flex items-center justify-between bg-gray-50 rounded-2xl px-5 py-4">
-                    <div>
-                      <span className="text-xs text-gray-400 mr-2">{e.event_date}</span>
-                      <span className="text-gray-900 font-medium text-sm">{e.title}</span>
+              {/* 날짜별 입력 */}
+              <div className="space-y-1.5">
+                {days.map(d => {
+                  const dow    = new Date(calYear, calMonth - 1, d).getDay()
+                  const isSun  = dow === 0
+                  const isSat  = dow === 6
+                  const dateColor = isSun ? 'text-red-400' : isSat ? 'text-blue-400' : 'text-gray-500'
+                  const hasVal = !!(dayInputs[d]?.trim())
+                  return (
+                    <div key={d} className="flex items-center gap-3">
+                      {/* 날짜 레이블 */}
+                      <span className={`text-xs font-medium w-16 flex-shrink-0 ${dateColor}`}>
+                        {calMonth}/{calPad(d)} ({DOW[dow]})
+                      </span>
+                      {/* 입력 필드 */}
+                      <input
+                        value={dayInputs[d] ?? ''}
+                        onChange={e => setDayInputs(prev => ({ ...prev, [d]: e.target.value }))}
+                        placeholder="일정 없음"
+                        className={`flex-1 rounded-xl px-4 py-2.5 text-sm outline-none transition-colors
+                          ${hasVal
+                            ? 'bg-gray-900 text-white placeholder-gray-600'
+                            : 'bg-gray-50 text-gray-900 placeholder-gray-300'
+                          }`}
+                      />
                     </div>
-                    <button
-                      onClick={() => handleDeleteCalEvent(e.id)}
-                      className="text-xs text-gray-300 hover:text-red-400 transition-colors ml-3 flex-shrink-0"
-                    >삭제</button>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
-            )}
-          </div>
-        )}
+
+              {/* 저장 버튼 */}
+              <button
+                onClick={handleSaveAllEvents}
+                disabled={calSaving}
+                className={`w-full py-4 rounded-2xl text-sm font-semibold transition-all
+                  ${calSaved
+                    ? 'bg-green-500 text-white'
+                    : calSaving
+                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    : 'bg-gray-900 text-white hover:bg-gray-700'
+                  }`}
+              >
+                {calSaved ? '✓ 저장됐습니다' : calSaving ? '저장 중...' : `${calYear}년 ${calMonth}월 일괄 저장`}
+              </button>
+            </div>
+          )
+        })()}
 
       </div>
     </main>
