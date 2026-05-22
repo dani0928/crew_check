@@ -4,8 +4,9 @@ import { NextResponse } from 'next/server'
 const NX = 62
 const NY = 119
 
+// UTC+9 고정 오프셋 — Vercel(UTC) 환경에서 toLocaleString 파싱 오차 방지
 function getKSTNow() {
-  return new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }))
+  return new Date(Date.now() + 9 * 60 * 60 * 1000)
 }
 
 function getBaseDateTime() {
@@ -30,7 +31,7 @@ export async function GET() {
   const params = new URLSearchParams({
     serviceKey: key,
     pageNo: '1',
-    numOfRows: '60',
+    numOfRows: '100',
     dataType: 'JSON',
     base_date,
     base_time,
@@ -70,6 +71,7 @@ export async function GET() {
       pty: data['PTY'] ?? '0',
       sky: data['SKY'] ?? '1',
       t1h: data['T1H'] ?? '',
+      lgt: data['LGT'] ?? '0',
     }))
 
   return NextResponse.json({ base_date, base_time, forecasts })

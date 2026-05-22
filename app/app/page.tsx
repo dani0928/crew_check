@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { supabase, Member } from '@/lib/supabase'
 import { DinoGame } from '@/components/DinoGame'
 import { FlappyGame } from '@/components/FlappyGame'
+import { WeatherCanvas } from '@/components/WeatherCanvas'
 import { validatePin } from '@/app/actions/authActions'
 import { getOrCreateSession, markAttendance } from '@/app/actions/attendanceActions'
 
@@ -13,8 +14,9 @@ const GAME_BG_FRAME = 1
 // ADMIN_PIN은 서버 액션(authActions.ts)에서 process.env.ADMIN_PIN으로 검증
 const ADMIN_NAMES = ['권경민', '박진혁', '백인경', '이종남', '최석진', '하이안', '황진석']
 
+// UTC+9 고정 오프셋 — 서버(UTC)·클라이언트 모두 동일하게 동작
 function getKSTNow() {
-  return new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }))
+  return new Date(Date.now() + 9 * 60 * 60 * 1000)
 }
 
 function getTodayKST(): string {
@@ -26,7 +28,7 @@ function getTodayKST(): string {
 }
 
 // --- Weather ---
-type ForecastItem = { time: string; pty: string; sky: string; t1h: string }
+type ForecastItem = { time: string; pty: string; sky: string; t1h: string; lgt: string }
 
 function ptyIcon(pty: string, sky: string): string {
   if (pty === '1') return '🌧'
@@ -50,124 +52,6 @@ function ptyLabel(pty: string, sky: string): string {
   return '맑음'
 }
 
-// Deterministic particles (Math.random 쓰면 hydration mismatch)
-const RAIN_P = Array.from({ length: 32 }, (_, i) => ({
-  left:  `${(i * 3.13 + 0.7) % 100}%`,
-  delay: `${(i * 0.048) % 1.1}s`,
-  dur:   `${0.4 + (i * 0.022) % 0.2}s`,
-  h:     20 + (i % 5) * 6,
-  op:    0.3 + (i % 4) * 0.13,
-}))
-const SNOW_P = Array.from({ length: 22 }, (_, i) => ({
-  left:  `${(i * 4.55 + 1.8) % 100}%`,
-  delay: `${(i * 0.19) % 3.5}s`,
-  dur:   `${3.5 + (i * 0.28) % 3}s`,
-  size:  3.5 + (i % 4) * 1.5,
-  dx:    `${-28 + (i * 2.9) % 56}px`,
-}))
-
-// iOS-style cloud: 여러 blurred 원 → 뭉실한 구름
-function IosCloud({ scale = 1, dark = false, opacity = 1 }: { scale?: number; dark?: boolean; opacity?: number }) {
-  const s = (v: number) => Math.round(v * scale)
-  const f = dark ? 'rgba(50,68,88,' : 'rgba(255,255,255,'
-  return (
-    <div style={{ position:'relative', width:s(220), height:s(120), filter:`blur(${s(18)}px)`, opacity }}>
-      <div style={{ position:'absolute', bottom:0,     left:0,      width:'100%', height:s(48), background:`${f}.28)`, borderRadius:s(24) }} />
-      <div style={{ position:'absolute', bottom:s(26), left:s(8),   width:s(70),  height:s(66), background:`${f}.26)`, borderRadius:'50%' }} />
-      <div style={{ position:'absolute', bottom:s(36), left:s(48),  width:s(96),  height:s(88), background:`${f}.30)`, borderRadius:'50%' }} />
-      <div style={{ position:'absolute', bottom:s(22), left:s(114), width:s(74),  height:s(62), background:`${f}.26)`, borderRadius:'50%' }} />
-    </div>
-  )
-}
-
-function WeatherAnimation({ pty, sky }: { pty: string; sky: string }) {
-  const rain    = pty === '1' || pty === '5' || pty === '2' || pty === '6'
-  const snow    = pty === '3' || pty === '7'
-  const clear   = pty === '0' && sky === '1'
-  const partly  = pty === '0' && sky === '3'
-  const overcast = !rain && !snow && !clear && !partly
-
-  return (
-    <div style={{ position:'absolute', inset:0, overflow:'hidden', pointerEvents:'none' }}>
-      {/* ☀️ 맑음 — 화면 상단 중앙, 큰 글로우 + 회전 광선 */}
-      {clear && (
-        <div style={{ position:'absolute', top:'2%', left:'50%', transform:'translateX(-50%)' }}>
-          <div style={{ position:'relative', width:100, height:100 }}>
-            <div style={{ position:'absolute', inset:-100, background:'radial-gradient(circle,rgba(255,195,40,.30) 0%,rgba(255,170,20,.08) 45%,transparent 65%)', animation:'wxGlow 5s ease-in-out infinite' }} />
-            <div style={{ position:'absolute', inset:-40,  background:'radial-gradient(circle,rgba(255,215,70,.22) 0%,transparent 60%)', animation:'wxGlow 3.5s ease-in-out infinite' }} />
-            <div style={{ position:'absolute', inset:0, animation:'wxRayR 32s linear infinite' }}>
-              {Array.from({length:8}, (_,i) => (
-                <div key={i} style={{ position:'absolute', top:'50%', left:'50%', width:2, height:32, background:'rgba(255,215,60,.55)', borderRadius:2, transformOrigin:'50% 0', transform:`rotate(${i*45}deg) translateX(-50%) translateY(-66px)` }} />
-              ))}
-            </div>
-            <div style={{ position:'absolute', inset:14, background:'radial-gradient(circle at 38% 32%,#FFF4A0,#FFC500)', borderRadius:'50%', boxShadow:'0 0 55px 18px rgba(255,195,30,.50)', animation:'wxGlow 5s ease-in-out infinite' }} />
-          </div>
-        </div>
-      )}
-
-      {/* 🌤 구름많음 — 작은 태양(왼쪽) + 큰 구름이 가림 */}
-      {partly && (
-        <>
-          <div style={{ position:'absolute', top:'4%', left:'14%' }}>
-            <div style={{ position:'relative', width:62, height:62 }}>
-              <div style={{ position:'absolute', inset:-24, background:'radial-gradient(circle,rgba(255,200,50,.26) 0%,transparent 60%)' }} />
-              <div style={{ position:'absolute', inset:0, animation:'wxRayR 26s linear infinite' }}>
-                {Array.from({length:6}, (_,i) => (
-                  <div key={i} style={{ position:'absolute', top:'50%', left:'50%', width:1.5, height:19, background:'rgba(255,215,60,.52)', borderRadius:1, transformOrigin:'50% 0', transform:`rotate(${i*60}deg) translateX(-50%) translateY(-38px)` }} />
-                ))}
-              </div>
-              <div style={{ position:'absolute', inset:10, background:'radial-gradient(circle at 38% 32%,#FFF4A0,#FFC500)', borderRadius:'50%', boxShadow:'0 0 28px 8px rgba(255,195,30,.40)' }} />
-            </div>
-          </div>
-          <div style={{ position:'absolute', top:44, left:'50%', transform:'translateX(-55%)', animation:'wxCldA 10s ease-in-out infinite' }}>
-            <IosCloud scale={1.3} />
-          </div>
-        </>
-      )}
-
-      {/* ☁️ 흐림 — 3개 구름 레이어 */}
-      {overcast && (
-        <>
-          <div style={{ position:'absolute', top:8,  left:'50%', transform:'translateX(-52%)', animation:'wxCldA 11s ease-in-out infinite' }}>
-            <IosCloud scale={1.5} />
-          </div>
-          <div style={{ position:'absolute', top:95, left:'50%', transform:'translateX(-25%)', animation:'wxCldB 14s ease-in-out infinite' }}>
-            <IosCloud scale={1.0} opacity={0.6} />
-          </div>
-          <div style={{ position:'absolute', top:55, left:'50%', transform:'translateX(-90%)', animation:'wxCldC 9s ease-in-out infinite' }}>
-            <IosCloud scale={0.8} opacity={0.45} />
-          </div>
-        </>
-      )}
-
-      {/* 🌧 비 — 어두운 구름 + 사선 빗줄기 */}
-      {rain && (
-        <>
-          <div style={{ position:'absolute', top:-15, left:'50%', transform:'translateX(-52%)', animation:'wxCldA 11s ease-in-out infinite' }}>
-            <IosCloud scale={1.8} dark />
-          </div>
-          <div style={{ position:'absolute', inset:-150, transform:'rotate(10deg)' }}>
-            {RAIN_P.map((p, i) => (
-              <div key={i} style={{ position:'absolute', left:p.left, top:0, width:1.5, height:p.h, background:`rgba(180,220,255,${p.op})`, borderRadius:2, animation:`wxRain ${p.dur} ${p.delay} linear infinite`, willChange:'transform' }} />
-            ))}
-          </div>
-        </>
-      )}
-
-      {/* ❄️ 눈 */}
-      {snow && (
-        <>
-          <div style={{ position:'absolute', top:0, left:'50%', transform:'translateX(-52%)', animation:'wxCldB 12s ease-in-out infinite', opacity:.65 }}>
-            <IosCloud scale={1.4} />
-          </div>
-          {SNOW_P.map((p, i) => (
-            <div key={i} style={{ position:'absolute', left:p.left, top:0, width:p.size, height:p.size, background:'rgba(255,255,255,.88)', borderRadius:'50%', '--dx':p.dx, animation:`wxSnow ${p.dur} ${p.delay} ease-in-out infinite`, willChange:'transform' } as React.CSSProperties} />
-          ))}
-        </>
-      )}
-    </div>
-  )
-}
 
 // 날씨누리 공식 지도 iframe embed
 const WEATHER_MAP_URL =
@@ -175,13 +59,16 @@ const WEATHER_MAP_URL =
 
 
 function getWeatherBg(forecasts: ForecastItem[] | null): string {
-  const h = getKSTNow().getHours()
+  const h = getKSTNow().getUTCHours()
   const pty = forecasts?.[0]?.pty ?? '0'
   const sky = forecasts?.[0]?.sky ?? '1'
+  const lgt = forecasts?.[0]?.lgt ?? '0'
   const isNight = h >= 20 || h < 6
   const isDusk  = h >= 17 && h < 20
   const isDawn  = h >= 5  && h < 7
 
+  if (lgt === '1')
+    return 'linear-gradient(180deg,#080c18 0%,#0e1624 100%)'
   if (pty === '3' || pty === '7')
     return isNight ? 'linear-gradient(180deg,#1e2d3d 0%,#2a3d52 100%)' : 'linear-gradient(180deg,#a0bdd2 0%,#7098b4 100%)'
   if (pty !== '0')
@@ -232,7 +119,7 @@ function WeatherPage({ forecasts }: { forecasts: ForecastItem[] | null }) {
       color:'white', overflow:'hidden',
       fontFamily:'Pretendard,-apple-system,BlinkMacSystemFont,sans-serif',
     }}>
-      {current && <WeatherAnimation pty={current.pty} sky={current.sky} />}
+      {current && <WeatherCanvas pty={current.pty} sky={current.sky} lgt={current.lgt} />}
 
       {/* H2 — 도시명 */}
       <div style={{ marginTop:24, textAlign:'center', position:'relative', zIndex:1 }}>
@@ -322,8 +209,18 @@ function WeatherBadge({ forecasts }: { forecasts: ForecastItem[] | null }) {
   const running    = forecasts.find(f => f.time === '2000')
   const runRain    = running && running.pty !== '0'
 
+  const hasLgt = near.lgt === '1'
+
   return (
     <div className="flex items-center gap-2 flex-wrap justify-center mb-5">
+      {/* 낙뢰 경보 */}
+      {hasLgt && (
+        <div className="flex items-center gap-1.5 rounded-full px-3 py-1 border text-xs font-medium bg-yellow-400/15 border-yellow-400/40 text-yellow-300">
+          <span style={{ fontSize: 14 }}>⚡</span>
+          <span>낙뢰 주의</span>
+        </div>
+      )}
+
       {/* Caption — 현재 날씨 */}
       <div className="flex items-center gap-1.5 bg-white/10 border border-white/15 rounded-full px-3 py-1 text-white">
         <span style={{ fontSize: 14 }}>{ptyIcon(near.pty, near.sky)}</span>
@@ -491,7 +388,7 @@ export default function HomePage() {
     const load = () =>
       fetch('/api/weather')
         .then(r => r.json())
-        .then(d => setForecasts(d.forecasts ?? null))
+        .then(d => setForecasts((d.forecasts ?? null) as ForecastItem[] | null))
         .catch(() => {})
     load()
     // 30분마다 자동 갱신 (기상청 초단기예보 발표 주기와 동일)

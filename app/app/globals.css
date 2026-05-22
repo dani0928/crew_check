@@ -75,11 +75,3 @@ button, a, [role="button"] {
   opacity: 0;
 }
 
-/* 날씨 애니메이션 keyframes */
-@keyframes wxRain { from{transform:translateY(-40px)} to{transform:translateY(112vh)} }
-@keyframes wxSnow { from{transform:translateY(-20px) translateX(0)} to{transform:translateY(112vh) translateX(var(--dx))} }
-@keyframes wxGlow { 0%,100%{opacity:.72;transform:scale(1)} 50%{opacity:1;transform:scale(1.12)} }
-@keyframes wxRayR { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-@keyframes wxCldA { 0%,100%{transform:translateX(0)} 50%{transform:translateX(22px)} }
-@keyframes wxCldB { 0%,100%{transform:translateX(0)} 50%{transform:translateX(-16px)} }
-@keyframes wxCldC { 0%,100%{transform:translateX(0)} 50%{transform:translateX(11px)} }
