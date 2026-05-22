@@ -321,15 +321,23 @@ function WeatherPage({ forecasts, airData }: { forecasts: ForecastItem[] | null;
 function WeatherBadge({ forecasts }: { forecasts: ForecastItem[] | null }) {
   if (!forecasts || forecasts.length === 0) return null
 
-  const now        = getKSTNow()
-  const day        = now.getDay()
-  const hour       = now.getHours()
-  const isRunDay   = day === 1 || day === 3 || day === 6
-  const beforeRun  = hour < 20
+  const now      = getKSTNow()
+  const day      = now.getUTCDay()    // KST 요일 (.getUTCDay() = KST-shifted date의 UTC 요일 = 실제 KST 요일)
+  const hour     = now.getUTCHours()  // KST 시각
 
-  const near       = forecasts[0]
-  const running    = forecasts.find(f => f.time === '2000')
-  const runRain    = running && running.pty !== '0'
+  const isSat    = day === 6
+  const isRunDay = day === 1 || day === 3 || isSat
+
+  // 토요일: 06시 러닝 / 월·수: 20시 러닝
+  const runTimeStr = isSat ? '0600' : '2000'
+  const runLabel   = isSat ? '06시' : '20시'
+  const beforeRun  = isSat ? hour < 8 : hour < 20
+
+  const near    = forecasts[0]
+  // 토요일은 0600 슬롯 우선, 없으면 0700 (API 발표 시점에 따라 슬롯이 다를 수 있음)
+  const running = forecasts.find(f => f.time === runTimeStr)
+               ?? (isSat ? forecasts.find(f => f.time === '0700') : undefined)
+  const runRain = running && running.pty !== '0'
 
   const hasLgt = near.lgt === '1'
 
@@ -359,7 +367,7 @@ function WeatherBadge({ forecasts }: { forecasts: ForecastItem[] | null }) {
             : 'bg-green-400/10 border-green-400/25 text-green-300'
         }`}>
           <span style={{ fontSize: 14 }}>{ptyIcon(running.pty, running.sky)}</span>
-          <span>20시 러닝 {runRain ? '비 예보' : '맑음'}</span>
+          <span>{runLabel} 러닝 {runRain ? '비 예보' : '맑음'}</span>
         </div>
       )}
     </>
