@@ -109,8 +109,8 @@ function AirSection({ airData }: { airData: AirData }) {
           대기질
         </p>
         <div style={{ display:'flex', justifyContent:'space-evenly' }}>
-          <AirGauge name="PM2.5" value={airData.pm25} grade={airData.pm25Grade} label={airData.pm25Label} maxVal={75} />
-          <AirGauge name="PM10"  value={airData.pm10} grade={airData.pm10Grade} label={airData.pm10Label} maxVal={150} />
+          <AirGauge name="초미세먼지" value={airData.pm25} grade={airData.pm25Grade} label={airData.pm25Label} maxVal={75} />
+          <AirGauge name="미세먼지"  value={airData.pm10} grade={airData.pm10Grade} label={airData.pm10Label} maxVal={150} />
         </div>
         <p style={{ fontSize:10, color:'rgba(255,255,255,0.28)', textAlign:'right', margin:'10px 0 0' }}>
           에어코리아 · {airData.station} 측정소
@@ -132,7 +132,7 @@ function AirBadge({ airData }: { airData: AirData }) {
         display:'inline-block', flexShrink:0,
       }} />
       <span style={{ fontSize:12, opacity:.75 }}>
-        PM2.5 {airData.pm25Label}
+        초미세먼지 {airData.pm25Label}
       </span>
     </div>
   )
@@ -224,88 +224,94 @@ function WeatherPage({ forecasts, airData }: { forecasts: ForecastItem[] | null;
    * ────────────────────────────────────────────────────────────
    */
   return (
+    /* 외부: 100dvh 뷰포트 고정, 캔버스 배경만 담음 */
     <div style={{
-      position:'relative', height:'100dvh',
-      display:'flex', flexDirection:'column', alignItems:'center',
-      color:'white', overflow:'hidden',
+      position:'relative', height:'100dvh', overflow:'hidden',
+      color:'white',
       fontFamily:'Pretendard,-apple-system,BlinkMacSystemFont,sans-serif',
     }}>
+      {/* 배경 캔버스 — 스크롤 없이 고정 */}
       {current && <WeatherCanvas pty={current.pty} sky={current.sky} lgt={current.lgt} />}
 
-      {/* H2 — 도시명 */}
-      <div style={{ marginTop:24, textAlign:'center', position:'relative', zIndex:1 }}>
-        <p style={{ fontSize:22, fontWeight:600, margin:0, letterSpacing:0.2 }}>동탄 여울공원</p>
-        {/* Caption — 메타 */}
-        <p style={{ fontSize:12, fontWeight:400, margin:'3px 0 0', opacity:.55 }}>
-          화성시{timeStr ? ` · ${timeStr} 기준` : ''}
-        </p>
-      </div>
-
-      {/* Display — 기온 */}
-      <div style={{ position:'relative', zIndex:1, lineHeight:0.9, marginTop:4 }}>
-        <p style={{ fontSize:'clamp(72px,19vw,90px)', fontWeight:100, margin:0, letterSpacing:-3 }}>
-          {current ? `${current.t1h}°` : '--°'}
-        </p>
-      </div>
-
-      {/* Body — 날씨 조건 + Body S — 최고·최저 */}
-      <div style={{ position:'relative', zIndex:1, textAlign:'center', marginTop:5 }}>
-        <p style={{ fontSize:16, margin:0, fontWeight:400, opacity:.88 }}>
-          {current ? ptyLabel(current.pty, current.sky) : ''}
-        </p>
-        {maxTemp !== null && minTemp !== null && (
-          <p style={{ fontSize:14, margin:'3px 0 0', opacity:.60, fontWeight:400 }}>
-            최고 {maxTemp}°  ·  최저 {minTemp}°
-          </p>
-        )}
-      </div>
-
-      {/* Label — 시간별 예보 카드 (온도 바로 아래) */}
-      <div style={{ width:'100%', padding:'0 16px', marginTop:14, position:'relative', zIndex:1 }}>
-        <div style={{
-          background:'rgba(255,255,255,0.13)',
-          backdropFilter:'blur(40px)', WebkitBackdropFilter:'blur(40px)',
-          borderRadius:22, border:'0.5px solid rgba(255,255,255,0.22)',
-          padding:'11px 20px 13px',
-        }}>
-          <p style={{ fontSize:11, fontWeight:600, textTransform:'uppercase', letterSpacing:1.5, opacity:.52, margin:'0 0 10px' }}>
-            시간별 예보
-          </p>
-          {forecasts && forecasts.length > 0 ? (
-            <div style={{ display:'flex', overflowX:'auto', scrollbarWidth:'none', justifyContent:'space-evenly' }}>
-              {forecasts.map((f, i) => (
-                <div key={f.time} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:5, flexShrink:0 }}>
-                  {/* Caption */}
-                  <span style={{ fontSize:12, opacity:.65, fontWeight:400 }}>{i === 0 ? '지금' : `${f.time.slice(0,2)}시`}</span>
-                  <span style={{ fontSize:20 }}>{ptyIcon(f.pty, f.sky)}</span>
-                  {/* Body S */}
-                  <span style={{ fontSize:14, fontWeight:500 }}>{f.t1h}°</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p style={{ fontSize:13, opacity:.45, margin:0 }}>불러오는 중...</p>
-          )}
-        </div>
-      </div>
-
-      {/* 대기질 카드 */}
-      <AirSection airData={airData} />
-
-      {/* 지도 — 나머지 공간 모두 차지 (flex:1) */}
+      {/* 내부: 스크롤 가능한 콘텐츠 영역 */}
       <div style={{
         position:'relative', zIndex:1,
-        width:'100%', flex:1, minHeight:0,
-        padding:'12px 16px 0',
-        paddingBottom:'max(36px, calc(env(safe-area-inset-bottom) + 20px))',
+        height:'100%', overflowY:'auto', scrollbarWidth:'none',
+        display:'flex', flexDirection:'column', alignItems:'center',
       }}>
-        <div style={{ height:'100%', borderRadius:18, overflow:'hidden', background:'rgba(0,0,0,.3)' }}>
-          <iframe
-            src={WEATHER_MAP_URL}
-            title="동탄 여울공원 날씨 지도"
-            style={{ width:'100%', height:'100%', border:'none', overflow:'hidden' }}
-          />
+
+        {/* H2 — 도시명 */}
+        <div style={{ marginTop:24, textAlign:'center', flexShrink:0 }}>
+          <p style={{ fontSize:22, fontWeight:600, margin:0, letterSpacing:0.2 }}>동탄 여울공원</p>
+          <p style={{ fontSize:12, fontWeight:400, margin:'3px 0 0', opacity:.55 }}>
+            화성시{timeStr ? ` · ${timeStr} 기준` : ''}
+          </p>
         </div>
+
+        {/* Display — 기온 */}
+        <div style={{ lineHeight:0.9, marginTop:4, flexShrink:0 }}>
+          <p style={{ fontSize:'clamp(72px,19vw,90px)', fontWeight:100, margin:0, letterSpacing:-3 }}>
+            {current ? `${current.t1h}°` : '--°'}
+          </p>
+        </div>
+
+        {/* Body — 날씨 조건 + Body S — 최고·최저 */}
+        <div style={{ textAlign:'center', marginTop:5, flexShrink:0 }}>
+          <p style={{ fontSize:16, margin:0, fontWeight:400, opacity:.88 }}>
+            {current ? ptyLabel(current.pty, current.sky) : ''}
+          </p>
+          {maxTemp !== null && minTemp !== null && (
+            <p style={{ fontSize:14, margin:'3px 0 0', opacity:.60, fontWeight:400 }}>
+              최고 {maxTemp}°  ·  최저 {minTemp}°
+            </p>
+          )}
+        </div>
+
+        {/* 시간별 예보 카드 */}
+        <div style={{ width:'100%', padding:'0 16px', marginTop:14, flexShrink:0 }}>
+          <div style={{
+            background:'rgba(255,255,255,0.13)',
+            backdropFilter:'blur(40px)', WebkitBackdropFilter:'blur(40px)',
+            borderRadius:22, border:'0.5px solid rgba(255,255,255,0.22)',
+            padding:'11px 20px 13px',
+          }}>
+            <p style={{ fontSize:11, fontWeight:600, textTransform:'uppercase', letterSpacing:1.5, opacity:.52, margin:'0 0 10px' }}>
+              시간별 예보
+            </p>
+            {forecasts && forecasts.length > 0 ? (
+              <div style={{ display:'flex', overflowX:'auto', scrollbarWidth:'none', justifyContent:'space-evenly' }}>
+                {forecasts.map((f, i) => (
+                  <div key={f.time} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:5, flexShrink:0 }}>
+                    <span style={{ fontSize:12, opacity:.65, fontWeight:400 }}>{i === 0 ? '지금' : `${f.time.slice(0,2)}시`}</span>
+                    <span style={{ fontSize:20 }}>{ptyIcon(f.pty, f.sky)}</span>
+                    <span style={{ fontSize:14, fontWeight:500 }}>{f.t1h}°</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p style={{ fontSize:13, opacity:.45, margin:0 }}>불러오는 중...</p>
+            )}
+          </div>
+        </div>
+
+        {/* 대기질 카드 */}
+        <AirSection airData={airData} />
+
+        {/* 지도 — 고정 높이 (스크롤 컨테이너 안이므로 flex:1 대신 고정값) */}
+        <div style={{
+          width:'100%', flexShrink:0,
+          padding:'12px 16px',
+          paddingBottom:'max(36px, calc(env(safe-area-inset-bottom) + 20px))',
+        }}>
+          <div style={{ height:240, borderRadius:18, overflow:'hidden', background:'rgba(0,0,0,.3)' }}>
+            <iframe
+              src={WEATHER_MAP_URL}
+              title="동탄 여울공원 날씨 지도"
+              style={{ width:'100%', height:'100%', border:'none', overflow:'hidden' }}
+            />
+          </div>
+        </div>
+
       </div>
     </div>
   )
@@ -328,7 +334,7 @@ function WeatherBadge({ forecasts }: { forecasts: ForecastItem[] | null }) {
   const hasLgt = near.lgt === '1'
 
   return (
-    <div className="flex items-center gap-2 flex-wrap justify-center mb-5">
+    <>
       {/* 낙뢰 경보 */}
       {hasLgt && (
         <div className="flex items-center gap-1.5 rounded-full px-3 py-1 border text-xs font-medium bg-yellow-400/15 border-yellow-400/40 text-yellow-300">
@@ -356,7 +362,7 @@ function WeatherBadge({ forecasts }: { forecasts: ForecastItem[] | null }) {
           <span>20시 러닝 {runRain ? '비 예보' : '맑음'}</span>
         </div>
       )}
-    </div>
+    </>
   )
 }
 
@@ -811,8 +817,10 @@ export default function HomePage() {
           </button>
           <p className="text-xl font-bold text-white mb-1">러닝크루 부스터</p>
           <p className="text-sm text-white/40 mb-3">매주 월·수·토 함께 달려요</p>
-          <WeatherBadge forecasts={forecasts} />
-          <AirBadge airData={airData} />
+          <div className="flex items-center gap-2 flex-wrap justify-center mb-5">
+            <WeatherBadge forecasts={forecasts} />
+            <AirBadge airData={airData} />
+          </div>
 
           {/* 리더보드 */}
           <div className="w-full max-w-sm mb-6">
