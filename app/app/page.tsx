@@ -84,7 +84,11 @@ function getWeatherBg(forecasts: ForecastItem[] | null): string {
 }
 
 function WeatherPage({ forecasts }: { forecasts: ForecastItem[] | null }) {
-  const now = getKSTNow()
+  const [now, setNow] = useState(getKSTNow())
+  useEffect(() => {
+    const t = setInterval(() => setNow(getKSTNow()), 60 * 1000)
+    return () => clearInterval(t)
+  }, [])
   const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`
   const current = forecasts?.[0]
   const temps = (forecasts ?? []).map(f => parseInt(f.t1h)).filter(n => !isNaN(n))
