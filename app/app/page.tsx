@@ -318,55 +318,97 @@ function WeatherPage({ forecasts, airData }: { forecasts: ForecastItem[] | null;
 }
 
 // --- Calendar ---
-const MAY_EVENTS: Record<number, string> = {
-  2:  '여울 조깅',
-  4:  '여울 100/100 인터벌',
-  5:  '화성 효 마라톤',
-  6:  '오산천 조깅',
-  9:  '광교산 트레일러닝',
-  10: '용인마라톤',
-  11: '여울 300/100 인터벌',
-  13: '치동천 조깅',
-  16: '팔달산 LSD',
-  18: '여울 400/200 인터벌',
-  20: '기흥호수 조깅',
-  23: '여울-필봉산 트레일러닝',
-  25: '휴무',
-  27: '800/200 인터벌',
-  30: '여울-오산천 LSD',
+type CalEvent = { id: number; event_date: string; title: string }
+
+// 법정 공휴일 (연도별 하드코딩 — 변경 없는 데이터)
+const KR_HOLIDAYS: Record<string, string> = {
+  '2026-01-01':'신정',
+  '2026-01-28':'설날연휴','2026-01-29':'설날','2026-01-30':'설날연휴',
+  '2026-03-01':'삼일절',
+  '2026-05-05':'어린이날',
+  '2026-05-24':'부처님오신날',
+  '2026-06-06':'현충일',
+  '2026-08-15':'광복절',
+  '2026-09-24':'추석연휴','2026-09-25':'추석','2026-09-26':'추석연휴',
+  '2026-10-03':'개천절','2026-10-09':'한글날',
+  '2026-12-25':'크리스마스',
 }
-const MAY_HOLIDAYS: Record<number, string> = {
-  5:  '어린이날',
-  24: '부처님오신날',
-}
+
 const DAY_HEADERS = ['일', '월', '화', '수', '목', '금', '토']
-const MAY_START_DOW = 5  // 2026-05-01 = 금요일(5)
-const MAY_DAYS = 31
+
+function daysInMonth(y: number, m: number) {
+  // m: 1-indexed
+  return new Date(Date.UTC(y, m, 0)).getUTCDate()
+}
+function pad2(n: number) { return String(n).padStart(2, '0') }
 
 function CalendarPage() {
-  const kst     = getKSTNow()
-  const isMay26 = kst.getUTCMonth() === 4 && kst.getUTCFullYear() === 2026
-  const todayD  = isMay26 ? kst.getUTCDate() : -1
+  const kst = getKSTNow()
+  const [year,   setYear]   = useState(kst.getUTCFullYear())
+  const [month,  setMonth]  = useState(kst.getUTCMonth() + 1) // 1-indexed
+  const [events, setEvents] = useState<CalEvent[]>([])
 
-  // 앞 빈칸 + 1~31 + 뒷 빈칸
+  const todayY = kst.getUTCFullYear()
+  const todayM = kst.getUTCMonth() + 1
+  const todayD = kst.getUTCDate()
+
+  useEffect(() => {
+    const start = `${year}-${pad2(month)}-01`
+    const end   = `${year}-${pad2(month)}-${pad2(daysInMonth(year, month))}`
+    supabase
+      .from('calendar_events')
+      .select('id, event_date, title')
+      .gte('event_date', start)
+      .lte('event_date', end)
+      .order('event_date')
+      .then(({ data }) => setEvents(data ?? []))
+  }, [year, month])
+
+  function prevMonth() { month === 1 ? (setYear(y=>y-1), setMonth(12)) : setMonth(m=>m-1) }
+  function nextMonth() { month === 12 ? (setYear(y=>y+1), setMonth(1))  : setMonth(m=>m+1) }
+
+  // day → title
+  const eventMap: Record<number, string> = {}
+  events.forEach(e => { eventMap[parseInt(e.event_date.split('-')[2])] = e.title })
+
+  // day → holiday name
+  const holidayMap: Record<number, string> = {}
+  for (let d = 1; d <= daysInMonth(year, month); d++) {
+    const key = `${year}-${pad2(month)}-${pad2(d)}`
+    if (KR_HOLIDAYS[key]) holidayMap[d] = KR_HOLIDAYS[key]
+  }
+
+  // 그리드 셀 (앞 빈칸 + 날짜 + 뒷 빈칸)
+  const startDow = new Date(Date.UTC(year, month - 1, 1)).getUTCDay()
+  const totalDays = daysInMonth(year, month)
   const cells: (number | null)[] = [
-    ...Array(MAY_START_DOW).fill(null),
-    ...Array.from({ length: MAY_DAYS }, (_, i) => i + 1),
+    ...Array(startDow).fill(null),
+    ...Array.from({ length: totalDays }, (_, i) => i + 1),
   ]
   while (cells.length % 7 !== 0) cells.push(null)
 
   return (
     <div style={{
-      height: '100dvh', overflowY: 'auto', scrollbarWidth: 'none',
-      background: 'linear-gradient(180deg,#0a1628 0%,#0f1e3a 55%,#0a1628 100%)',
-      color: 'white',
-      fontFamily: 'Pretendard,-apple-system,BlinkMacSystemFont,sans-serif',
+      height:'100dvh', overflowY:'auto', scrollbarWidth:'none',
+      background:'linear-gradient(180deg,#0a1628 0%,#0f1e3a 55%,#0a1628 100%)',
+      color:'white',
+      fontFamily:'Pretendard,-apple-system,BlinkMacSystemFont,sans-serif',
     }}>
-      {/* 헤더 */}
-      <div style={{ padding: '52px 20px 20px', textAlign: 'center' }}>
-        <p style={{ fontSize:26, fontWeight:700, margin:0, letterSpacing:-.5 }}>
-          2026년 5월
+      {/* 헤더 — 월 이동 */}
+      <div style={{ padding:'52px 20px 20px', display:'flex', alignItems:'center', justifyContent:'center', gap:18 }}>
+        <button onClick={prevMonth} style={{
+          background:'rgba(255,255,255,0.10)', border:'none', borderRadius:'50%',
+          width:34, height:34, color:'white', fontSize:20, cursor:'pointer',
+          display:'flex', alignItems:'center', justifyContent:'center',
+        }}>‹</button>
+        <p style={{ fontSize:24, fontWeight:700, margin:0, letterSpacing:-.5, minWidth:120, textAlign:'center' }}>
+          {year}년 {month}월
         </p>
+        <button onClick={nextMonth} style={{
+          background:'rgba(255,255,255,0.10)', border:'none', borderRadius:'50%',
+          width:34, height:34, color:'white', fontSize:20, cursor:'pointer',
+          display:'flex', alignItems:'center', justifyContent:'center',
+        }}>›</button>
       </div>
 
       {/* 글래스 카드 */}
@@ -384,9 +426,7 @@ function CalendarPage() {
               textAlign:'center', padding:'12px 0 10px',
               fontSize:11, fontWeight:600, letterSpacing:.3,
               color: i===0 ? '#FF6B6B' : i===6 ? '#60B8FF' : 'rgba(255,255,255,0.42)',
-            }}>
-              {h}
-            </div>
+            }}>{h}</div>
           ))}
         </div>
         <div style={{ height:'0.5px', background:'rgba(255,255,255,0.09)' }} />
@@ -394,58 +434,39 @@ function CalendarPage() {
         {/* 날짜 셀 */}
         <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)' }}>
           {cells.map((day, idx) => {
-            if (day === null) {
-              const row = Math.floor(idx / 7)
-              const col = idx % 7
-              return (
-                <div key={`e${idx}`} style={{
-                  minHeight:78,
-                  borderTop: row > 0 ? '0.5px solid rgba(255,255,255,0.08)' : 'none',
-                  borderRight: col < 6 ? '0.5px solid rgba(255,255,255,0.08)' : 'none',
-                }} />
-              )
+            const row = Math.floor(idx / 7)
+            const dow = idx % 7
+            const borderStyle = {
+              borderTop:   row > 0  ? '0.5px solid rgba(255,255,255,0.08)' : 'none',
+              borderRight: dow < 6  ? '0.5px solid rgba(255,255,255,0.08)' : 'none',
             }
-            const dow     = idx % 7
-            const row     = Math.floor(idx / 7)
+            if (day === null) return <div key={`e${idx}`} style={{ minHeight:78, ...borderStyle }} />
+
             const isSun   = dow === 0
             const isSatC  = dow === 6
-            const isHol   = !!MAY_HOLIDAYS[day]
-            const isToday = day === todayD
-            const event   = MAY_EVENTS[day]
-            const holiday = MAY_HOLIDAYS[day]
+            const isHol   = !!holidayMap[day]
+            const isToday = year===todayY && month===todayM && day===todayD
+            const event   = eventMap[day]
+            const holiday = holidayMap[day]
             const dateCol = (isSun || isHol) ? '#FF6B6B' : isSatC ? '#60B8FF' : 'rgba(255,255,255,0.88)'
 
             return (
               <div key={day} style={{
                 minHeight:78, padding:'6px 2px 5px',
                 display:'flex', flexDirection:'column', alignItems:'center', gap:2,
-                borderTop: row > 0 ? '0.5px solid rgba(255,255,255,0.08)' : 'none',
-                borderRight: dow < 6 ? '0.5px solid rgba(255,255,255,0.08)' : 'none',
                 background: isToday ? 'rgba(255,255,255,0.06)' : 'transparent',
+                ...borderStyle,
               }}>
-                {/* 날짜 번호 */}
                 <div style={{
                   width:26, height:26, borderRadius:'50%', flexShrink:0,
                   display:'flex', alignItems:'center', justifyContent:'center',
                   background: isToday ? 'rgba(96,184,255,0.55)' : 'transparent',
                   boxShadow: isToday ? '0 0 10px rgba(96,184,255,0.4)' : 'none',
                 }}>
-                  <span style={{ fontSize:12, fontWeight: isToday ? 700 : 500, color: isToday ? '#fff' : dateCol }}>
-                    {day}
-                  </span>
+                  <span style={{ fontSize:12, fontWeight:isToday?700:500, color:isToday?'#fff':dateCol }}>{day}</span>
                 </div>
-                {/* 공휴일 */}
-                {holiday && (
-                  <span style={{ fontSize:8, color:'#FF8585', fontWeight:600, lineHeight:1.2, textAlign:'center', letterSpacing:-.2 }}>
-                    {holiday}
-                  </span>
-                )}
-                {/* 일정 */}
-                {event && (
-                  <span style={{ fontSize:8, color:'rgba(255,255,255,0.70)', lineHeight:1.3, textAlign:'center', letterSpacing:-.3, wordBreak:'keep-all' }}>
-                    {event}
-                  </span>
-                )}
+                {holiday && <span style={{ fontSize:8, color:'#FF8585', fontWeight:600, lineHeight:1.2, textAlign:'center', letterSpacing:-.2 }}>{holiday}</span>}
+                {event   && <span style={{ fontSize:8, color:'rgba(255,255,255,0.70)', lineHeight:1.3, textAlign:'center', letterSpacing:-.3, wordBreak:'keep-all' }}>{event}</span>}
               </div>
             )
           })}

@@ -4,12 +4,13 @@
 import { useEffect, useState, useRef } from 'react'
 import { supabase, Member } from '@/lib/supabase'
 
-type SessionRow = { id: number; date: string }
+type SessionRow    = { id: number; date: string }
 type AttendanceRow = { member_id: number; members: { name: string } }
-type MonthStat = { name: string; count: number }
+type MonthStat     = { name: string; count: number }
+type CalEvent      = { id: number; event_date: string; title: string }
 
 export default function AdminPage() {
-  const [tab, setTab] = useState<'attendance' | 'members' | 'stats'>('attendance')
+  const [tab, setTab] = useState<'attendance' | 'members' | 'stats' | 'calendar'>('attendance')
   const [sessions, setSessions] = useState<SessionRow[]>([])
   const [selectedDate, setSelectedDate] = useState('')
   const [attendees, setAttendees] = useState<string[]>([])
@@ -21,9 +22,18 @@ export default function AdminPage() {
   const [lastReset, setLastReset] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
+  // 일정 관리
+  const today = new Date()
+  const [calYear,  setCalYear]  = useState(today.getFullYear())
+  const [calMonth, setCalMonth] = useState(today.getMonth() + 1)
+  const [calEvents, setCalEvents] = useState<CalEvent[]>([])
+  const [newEventDate,  setNewEventDate]  = useState('')
+  const [newEventTitle, setNewEventTitle] = useState('')
+
   useEffect(() => { loadSessions(); loadMembers(); loadLastReset() }, [])
   useEffect(() => { if (selectedDate) loadAttendance(selectedDate) }, [selectedDate])
   useEffect(() => { if (tab === 'stats') loadMonthStats(selectedMonth) }, [tab, selectedMonth])
+  useEffect(() => { if (tab === 'calendar') loadCalEvents() }, [tab, calYear, calMonth])
 
   async function loadLastReset() {
     const { data } = await supabase
@@ -87,6 +97,33 @@ export default function AdminPage() {
     if (fileRef.current) fileRef.current.value = ''
   }
 
+  async function loadCalEvents() {
+    const p = (n: number) => String(n).padStart(2, '0')
+    const dim = new Date(calYear, calMonth, 0).getDate()
+    const start = `${calYear}-${p(calMonth)}-01`
+    const end   = `${calYear}-${p(calMonth)}-${p(dim)}`
+    const { data } = await supabase
+      .from('calendar_events')
+      .select('id, event_date, title')
+      .gte('event_date', start)
+      .lte('event_date', end)
+      .order('event_date')
+    setCalEvents(data ?? [])
+  }
+
+  async function handleAddCalEvent() {
+    const title = newEventTitle.trim()
+    if (!newEventDate || !title) return
+    await supabase.from('calendar_events').insert({ event_date: newEventDate, title })
+    setNewEventDate(''); setNewEventTitle('')
+    loadCalEvents()
+  }
+
+  async function handleDeleteCalEvent(id: number) {
+    await supabase.from('calendar_events').delete().eq('id', id)
+    loadCalEvents()
+  }
+
   async function loadMonthStats(month: string) {
     setLoading(true)
     const { data: sessionData } = await supabase.from('sessions').select('id').gte('date', `${month}-01`).lte('date', `${month}-31`)
@@ -124,6 +161,7 @@ export default function AdminPage() {
     { key: 'attendance', label: '출석 현황' },
     { key: 'members',    label: '크루원 관리' },
     { key: 'stats',      label: '월별 통계' },
+    { key: 'calendar',   label: '일정 관리' },
   ] as const
 
   return (
@@ -278,6 +316,67 @@ export default function AdminPage() {
             )}
           </div>
         )}
+        {/* 일정 관리 */}
+        {tab === 'calendar' && (
+          <div className="space-y-5">
+            {/* 월 이동 */}
+            <div className="flex items-center justify-between bg-gray-50 rounded-2xl px-5 py-3">
+              <button
+                onClick={() => calMonth === 1 ? (setCalYear(y=>y-1), setCalMonth(12)) : setCalMonth(m=>m-1)}
+                className="text-gray-400 hover:text-gray-700 text-xl px-2"
+              >‹</button>
+              <span className="text-sm font-semibold text-gray-800">{calYear}년 {calMonth}월</span>
+              <button
+                onClick={() => calMonth === 12 ? (setCalYear(y=>y+1), setCalMonth(1)) : setCalMonth(m=>m+1)}
+                className="text-gray-400 hover:text-gray-700 text-xl px-2"
+              >›</button>
+            </div>
+
+            {/* 일정 추가 폼 */}
+            <div className="space-y-2">
+              <input
+                type="date"
+                value={newEventDate}
+                onChange={e => setNewEventDate(e.target.value)}
+                className="w-full bg-gray-50 rounded-2xl px-5 py-4 text-sm text-gray-900 outline-none"
+              />
+              <div className="flex gap-2">
+                <input
+                  value={newEventTitle}
+                  onChange={e => setNewEventTitle(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleAddCalEvent()}
+                  placeholder="일정 내용 입력"
+                  className="flex-1 bg-gray-50 rounded-2xl px-5 py-4 text-sm text-gray-900 outline-none"
+                />
+                <button
+                  onClick={handleAddCalEvent}
+                  className="px-5 py-4 bg-gray-900 text-white rounded-2xl text-sm font-medium"
+                >추가</button>
+              </div>
+            </div>
+
+            {/* 일정 목록 */}
+            {calEvents.length === 0 ? (
+              <p className="text-center text-gray-300 py-12">이 달 일정이 없습니다.</p>
+            ) : (
+              <div className="space-y-2">
+                {calEvents.map(e => (
+                  <div key={e.id} className="flex items-center justify-between bg-gray-50 rounded-2xl px-5 py-4">
+                    <div>
+                      <span className="text-xs text-gray-400 mr-2">{e.event_date}</span>
+                      <span className="text-gray-900 font-medium text-sm">{e.title}</span>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteCalEvent(e.id)}
+                      className="text-xs text-gray-300 hover:text-red-400 transition-colors ml-3 flex-shrink-0"
+                    >삭제</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
       </div>
     </main>
   )
