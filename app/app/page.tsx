@@ -661,6 +661,8 @@ export default function HomePage() {
   const [step, setStep]                     = useState<Step>('search')
   const [doneName, setDoneName]             = useState('')
   const [attendanceLoading, setAttendanceLoading] = useState(true)
+  const [attendanceError, setAttendanceError] = useState(false)
+  const [selectError, setSelectError]       = useState(false)
 
   useEffect(() => { loadLeaderboard() }, [])
 
@@ -738,45 +740,85 @@ export default function HomePage() {
 
   async function loadAttendanceData() {
     setAttendanceLoading(true)
+    setAttendanceError(false)
     try {
       const today = getTodayKST()
-      // 읽기는 anon 클라이언트 직접 사용 (서버 액션 경유 없음 → 빠름)
       const [{ data: existing }, { data: membersData }] = await Promise.all([
         supabase.from('sessions').select('id').eq('date', today).maybeSingle(),
         supabase.from('members').select('*').order('name'),
       ])
       setMembers(membersData ?? [])
 
-      let sid: number | undefined = existing?.id
+      let sid: number | null = existing?.id ?? null
       if (!sid) {
-        // 쓰기만 서버 액션 (service role key 사용)
-        const { sessionId, error } = await getOrCreateSession(today)
-        if (error || !sessionId) return
-        sid = sessionId
+        const { sessionId: newSid, error } = await getOrCreateSession(today)
+        if (!error && newSid) {
+          sid = newSid
+        } else {
+          // 서버 액션 실패 시 anon key로 fallback (RLS가 허용)
+          const { data: fallback } = await supabase
+            .from('sessions')
+            .upsert({ date: today }, { onConflict: 'date' })
+            .select('id')
+            .single()
+          if (fallback?.id) {
+            sid = fallback.id
+          } else {
+            setAttendanceError(true)
+            return
+          }
+        }
       }
-      setSessionId(sid)
+      setSessionId(sid as number)
       const { data: attendanceData } = await supabase
         .from('attendance').select('member_id').eq('session_id', sid)
       setCheckedInIds(new Set((attendanceData ?? []).map((a: { member_id: number }) => a.member_id)))
     } catch {
-      // 실패 시 빈 상태 유지
+      setAttendanceError(true)
     } finally {
       setAttendanceLoading(false)
     }
   }
 
   async function handleSelect(member: Member) {
-    if (!sessionId || checkedInIds.has(member.id)) return
-    // 낙관적 업데이트
+    if (checkedInIds.has(member.id)) return
+    setSelectError(false)
+
+    let sid = sessionId
+    if (!sid) {
+      // sessionId가 null인 경우 재시도
+      const today = getTodayKST()
+      const { sessionId: newSid } = await getOrCreateSession(today)
+      if (newSid) {
+        sid = newSid
+        setSessionId(sid)
+      } else {
+        const { data: fallback } = await supabase
+          .from('sessions')
+          .upsert({ date: today }, { onConflict: 'date' })
+          .select('id')
+          .single()
+        if (fallback?.id) {
+          sid = fallback.id
+          setSessionId(sid)
+        } else {
+          setSelectError(true)
+          setTimeout(() => setSelectError(false), 3000)
+          return
+        }
+      }
+    }
+
     setCheckedInIds(prev => new Set(prev).add(member.id))
     setDoneName(member.name)
     setStep('done')
-    // 서버 insert — 실패 시 롤백
-    const { error } = await markAttendance(sessionId, member.id)
+    const { error } = await markAttendance(sid as number, member.id)
     if (error) {
       setCheckedInIds(prev => { const s = new Set(prev); s.delete(member.id); return s })
       setStep('search')
       setDoneName('')
+      setSelectError(true)
+      setTimeout(() => setSelectError(false), 3000)
     }
   }
 
@@ -878,6 +920,14 @@ export default function HomePage() {
           </div>
           {attendanceLoading ? (
             <p className="text-center text-white/30 text-sm py-10">불러오는 중...</p>
+          ) : attendanceError ? (
+            <div className="text-center py-10">
+              <p className="text-red-400/80 text-sm mb-4">데이터를 불러오지 못했습니다.</p>
+              <button onClick={() => loadAttendanceData()}
+                className="px-5 py-2.5 rounded-xl text-sm font-medium bg-white/10 border border-white/20 text-white/70 hover:bg-white/15 transition-all">
+                다시 시도
+              </button>
+            </div>
           ) : query.trim() === '' ? (
             <p className="text-center text-white/40 text-sm py-10">이름을 입력하세요.</p>
           ) : filtered.length === 0 ? (
@@ -895,6 +945,9 @@ export default function HomePage() {
                 )
               })}
             </div>
+          )}
+          {selectError && (
+            <p className="text-center text-red-400/80 text-sm mt-3">출석 처리 중 오류가 발생했습니다. 다시 시도해주세요.</p>
           )}
           {ADMIN_NAMES.includes(query.trim()) && (
             <div className="mt-4">

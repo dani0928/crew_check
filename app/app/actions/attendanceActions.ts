@@ -11,11 +11,14 @@ function admin() {
 
 export async function getOrCreateSession(date: string): Promise<{ sessionId?: number; error?: string }> {
   const sb = admin()
-  const { data: existing } = await sb.from('sessions').select('id').eq('date', date).single()
-  if (existing?.id) return { sessionId: existing.id }
-  const { data: created, error } = await sb.from('sessions').insert({ date }).select('id').single()
+  // upsert handles race conditions: if another request already created the session, returns existing id
+  const { data, error } = await sb
+    .from('sessions')
+    .upsert({ date }, { onConflict: 'date' })
+    .select('id')
+    .single()
   if (error) return { error: error.message }
-  return { sessionId: created?.id }
+  return { sessionId: data?.id }
 }
 
 export async function markAttendance(sessionId: number, memberId: number): Promise<{ error?: string }> {
