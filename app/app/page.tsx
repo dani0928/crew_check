@@ -6,7 +6,6 @@ import { DinoGame } from '@/components/DinoGame'
 import { FlappyGame } from '@/components/FlappyGame'
 import { WeatherCanvas } from '@/components/WeatherCanvas'
 import { validatePin } from '@/app/actions/authActions'
-import { getOrCreateSession, markAttendance } from '@/app/actions/attendanceActions'
 
 const LOGO_URL = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/assets/Booster.jpg`
 const VIDEO_INTRO = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/assets/BOOSTER_INTRO.webm`
@@ -751,25 +750,15 @@ export default function HomePage() {
 
       let sid: number | null = existing?.id ?? null
       if (!sid) {
-        const { sessionId: newSid, error } = await getOrCreateSession(today)
-        if (!error && newSid) {
-          sid = newSid
-        } else {
-          // 서버 액션 실패 시 anon key로 fallback (RLS가 허용)
-          const { data: fallback } = await supabase
-            .from('sessions')
-            .upsert({ date: today }, { onConflict: 'date' })
-            .select('id')
-            .single()
-          if (fallback?.id) {
-            sid = fallback.id
-          } else {
-            setAttendanceError(true)
-            return
-          }
-        }
+        const { data: created, error } = await supabase
+          .from('sessions')
+          .upsert({ date: today }, { onConflict: 'date' })
+          .select('id')
+          .single()
+        if (error || !created?.id) { setAttendanceError(true); return }
+        sid = created.id
       }
-      setSessionId(sid as number)
+      setSessionId(sid)
       const { data: attendanceData } = await supabase
         .from('attendance').select('member_id').eq('session_id', sid)
       setCheckedInIds(new Set((attendanceData ?? []).map((a: { member_id: number }) => a.member_id)))
@@ -786,33 +775,27 @@ export default function HomePage() {
 
     let sid = sessionId
     if (!sid) {
-      // sessionId가 null인 경우 재시도
       const today = getTodayKST()
-      const { sessionId: newSid } = await getOrCreateSession(today)
-      if (newSid) {
-        sid = newSid
-        setSessionId(sid)
-      } else {
-        const { data: fallback } = await supabase
-          .from('sessions')
-          .upsert({ date: today }, { onConflict: 'date' })
-          .select('id')
-          .single()
-        if (fallback?.id) {
-          sid = fallback.id
-          setSessionId(sid)
-        } else {
-          setSelectError(true)
-          setTimeout(() => setSelectError(false), 3000)
-          return
-        }
+      const { data: created, error } = await supabase
+        .from('sessions')
+        .upsert({ date: today }, { onConflict: 'date' })
+        .select('id')
+        .single()
+      if (error || !created?.id) {
+        setSelectError(true)
+        setTimeout(() => setSelectError(false), 3000)
+        return
       }
+      sid = created.id
+      setSessionId(sid)
     }
 
     setCheckedInIds(prev => new Set(prev).add(member.id))
     setDoneName(member.name)
     setStep('done')
-    const { error } = await markAttendance(sid as number, member.id)
+    const { error } = await supabase
+      .from('attendance')
+      .insert({ session_id: sid, member_id: member.id })
     if (error) {
       setCheckedInIds(prev => { const s = new Set(prev); s.delete(member.id); return s })
       setStep('search')
