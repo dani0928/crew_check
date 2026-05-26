@@ -341,15 +341,35 @@ function daysInMonth(y: number, m: number) {
 }
 function pad2(n: number) { return String(n).padStart(2, '0') }
 
-function CalendarPage() {
+function getKSTDateParts() {
   const kst = getKSTNow()
-  const [year,   setYear]   = useState(kst.getUTCFullYear())
-  const [month,  setMonth]  = useState(kst.getUTCMonth() + 1) // 1-indexed
+  return {
+    year: kst.getUTCFullYear(),
+    month: kst.getUTCMonth() + 1,
+    day: kst.getUTCDate(),
+  }
+}
+
+function CalendarPage() {
+  const initialToday = getKSTDateParts()
+  const [today, setToday]   = useState(initialToday)
+  const [year,   setYear]   = useState(initialToday.year)
+  const [month,  setMonth]  = useState(initialToday.month) // 1-indexed
   const [events, setEvents] = useState<CalEvent[]>([])
 
-  const todayY = kst.getUTCFullYear()
-  const todayM = kst.getUTCMonth() + 1
-  const todayD = kst.getUTCDate()
+  const todayY = today.year
+  const todayM = today.month
+  const todayD = today.day
+
+  useEffect(() => {
+    const updateToday = () => setToday(getKSTDateParts())
+    const initial = setTimeout(updateToday, 0)
+    const t = setInterval(updateToday, 60 * 1000)
+    return () => {
+      clearTimeout(initial)
+      clearInterval(t)
+    }
+  }, [])
 
   useEffect(() => {
     const start = `${year}-${pad2(month)}-01`
