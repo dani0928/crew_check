@@ -318,6 +318,7 @@ function WeatherPage({ forecasts, airData }: { forecasts: ForecastItem[] | null;
 
 // --- Calendar ---
 type CalEvent = { id: number; event_date: string; title: string }
+type KSTDateParts = { year: number; month: number; day: number }
 
 // 법정 공휴일 (연도별 하드코딩 — 변경 없는 데이터)
 const KR_HOLIDAYS: Record<string, string> = {
@@ -341,7 +342,7 @@ function daysInMonth(y: number, m: number) {
 }
 function pad2(n: number) { return String(n).padStart(2, '0') }
 
-function getKSTDateParts() {
+function getKSTDateParts(): KSTDateParts {
   const kst = getKSTNow()
   return {
     year: kst.getUTCFullYear(),
@@ -352,19 +353,26 @@ function getKSTDateParts() {
 
 function CalendarPage() {
   const initialToday = getKSTDateParts()
-  const [today, setToday]   = useState(initialToday)
+  const [today, setToday]   = useState<KSTDateParts | null>(null)
   const [year,   setYear]   = useState(initialToday.year)
   const [month,  setMonth]  = useState(initialToday.month) // 1-indexed
   const [events, setEvents] = useState<CalEvent[]>([])
 
-  const todayY = today.year
-  const todayM = today.month
-  const todayD = today.day
+  const todayY = today?.year
+  const todayM = today?.month
+  const todayD = today?.day
 
   useEffect(() => {
-    const updateToday = () => setToday(getKSTDateParts())
-    const initial = setTimeout(updateToday, 0)
-    const t = setInterval(updateToday, 60 * 1000)
+    const updateToday = (syncVisibleMonth = false) => {
+      const parts = getKSTDateParts()
+      setToday(parts)
+      if (syncVisibleMonth) {
+        setYear(parts.year)
+        setMonth(parts.month)
+      }
+    }
+    const initial = setTimeout(() => updateToday(true), 0)
+    const t = setInterval(() => updateToday(), 60 * 1000)
     return () => {
       clearTimeout(initial)
       clearInterval(t)
@@ -464,13 +472,13 @@ function CalendarPage() {
             const isSun   = dow === 0
             const isSatC  = dow === 6
             const isHol   = !!holidayMap[day]
-            const isToday = year===todayY && month===todayM && day===todayD
+            const isToday = today !== null && year===todayY && month===todayM && day===todayD
             const event   = eventMap[day]
             const holiday = holidayMap[day]
             const dateCol = (isSun || isHol) ? '#FF6B6B' : isSatC ? '#60B8FF' : 'rgba(255,255,255,0.88)'
 
             return (
-              <div key={day} style={{
+              <div key={`${year}-${month}-${day}`} style={{
                 minHeight:78, padding:'6px 2px 5px',
                 display:'flex', flexDirection:'column', alignItems:'center', gap:2,
                 background: isToday ? 'rgba(255,255,255,0.06)' : 'transparent',
